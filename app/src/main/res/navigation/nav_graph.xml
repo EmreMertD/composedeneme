@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    app:startDestination="@id/mainFragment">
+
+    <fragment
+        android:id="@+id/mainFragment"
+        android:name="com.dbssoftware.composedeneme.MainFragment"
+        tools:layout="@layout/fragment_main">
+        <action
+            android:id="@+id/action_mainFragment_to_responseFragment"
+            app:destination="@id/responseFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/responseFragment"
+        android:name="com.dbssoftware.composedeneme.ResponseFragment"
+        tools:layout="@layout/fragment_response">
+
+        <argument
+            android:name="requestHeader"
+            app:argType="string" />
+        <argument
+            android:name="requestQuery"
+            app:argType="string" />
+        <argument
+            android:name="response"
+            app:argType="string" />
+    </fragment>
+
+</navigation>
