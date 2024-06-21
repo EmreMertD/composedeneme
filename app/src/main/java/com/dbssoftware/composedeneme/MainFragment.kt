@@ -42,7 +42,15 @@ class MainFragment : Fragment() {
                 var selectedAsync by remember { mutableStateOf("Async") }
                 var headerContentType by remember { mutableStateOf(TextFieldValue("application/json")) }
                 var headerGuid by remember { mutableStateOf(TextFieldValue()) }
-                var queryUnmasked by remember { mutableStateOf(TextFieldValue("false")) }
+                var headerDialect by remember { mutableStateOf(TextFieldValue("TR")) }
+                var headerIp by remember { mutableStateOf(TextFieldValue("127.0.0.1")) }
+                var headerChannel by remember { mutableStateOf(TextFieldValue("Mobile")) }
+                var headerAccept by remember { mutableStateOf(TextFieldValue("application/json")) }
+                var headerTenantCompanyId by remember { mutableStateOf(TextFieldValue("GAR")) }
+                var headerTenantGeolocation by remember { mutableStateOf(TextFieldValue("TUR")) }
+                var headerClientId by remember { mutableStateOf(TextFieldValue("asdasdasdasdasd892438sadsa")) }
+                var headerAuthorization by remember { mutableStateOf(TextFieldValue("Bearer dsakldjklasjklas")) }
+                var queryUnmasked by remember { mutableStateOf("false") }
                 var queryContactDetailType by remember { mutableStateOf(TextFieldValue("MOBILE")) }
                 var response by remember { mutableStateOf("") }
 
@@ -72,6 +80,22 @@ class MainFragment : Fragment() {
                                 onHeaderContentTypeChange = { headerContentType = it },
                                 headerGuid = headerGuid,
                                 onHeaderGuidChange = { headerGuid = it },
+                                headerDialect = headerDialect,
+                                onHeaderDialectChange = { headerDialect = it },
+                                headerIp = headerIp,
+                                onHeaderIpChange = { headerIp = it },
+                                headerChannel = headerChannel,
+                                onHeaderChannelChange = { headerChannel = it },
+                                headerAccept = headerAccept,
+                                onHeaderAcceptChange = { headerAccept = it },
+                                headerTenantCompanyId = headerTenantCompanyId,
+                                onHeaderTenantCompanyIdChange = { headerTenantCompanyId = it },
+                                headerTenantGeolocation = headerTenantGeolocation,
+                                onHeaderTenantGeolocationChange = { headerTenantGeolocation = it },
+                                headerClientId = headerClientId,
+                                onHeaderClientIdChange = { headerClientId = it },
+                                headerAuthorization = headerAuthorization,
+                                onHeaderAuthorizationChange = { headerAuthorization = it },
                                 queryUnmasked = queryUnmasked,
                                 onQueryUnmaskedChange = { queryUnmasked = it },
                                 queryContactDetailType = queryContactDetailType,
@@ -82,18 +106,26 @@ class MainFragment : Fragment() {
 
                     if (shouldMakeApiCall) {
                         LaunchedEffect(Unit) {
-                            delay(2000) // Ağ gecikmesini simüle edin
+                            delay(2000) // Simulate network delay
 
                             val requestHeader = getDefaultHeaders(
                                 headerContentType.text,
-                                headerGuid.text
+                                headerGuid.text,
+                                headerDialect.text,
+                                headerIp.text,
+                                headerChannel.text,
+                                headerAccept.text,
+                                headerTenantCompanyId.text,
+                                headerTenantGeolocation.text,
+                                headerClientId.text,
+                                headerAuthorization.text
                             )
                             val requestQuery = getQueryMap(
-                                queryUnmasked.text,
+                                queryUnmasked,
                                 queryContactDetailType.text
                             )
 
-                            response = "Sample Response" // Bu, gerçek API yanıtı olacaktır
+                            response = "Sample Response" // This would be the actual API response
                             showProgressBar = false
                             shouldMakeApiCall = false
                             findNavController().navigate(
@@ -117,18 +149,29 @@ class MainFragment : Fragment() {
         return queryMap
     }
 
-    private fun getDefaultHeaders(contentType: String, guid: String): HashMap<String, String> {
+    private fun getDefaultHeaders(
+        contentType: String,
+        guid: String,
+        dialect: String,
+        ip: String,
+        channel: String,
+        accept: String,
+        tenantCompanyId: String,
+        tenantGeolocation: String,
+        clientId: String,
+        authorization: String
+    ): HashMap<String, String> {
         val expectedHeaders = HashMap<String, String>()
         expectedHeaders["Content-Type"] = contentType
         expectedHeaders["guid"] = if (guid.isNotEmpty()) guid else UUID.randomUUID().toString()
-        expectedHeaders["dialect"] = "TR"
-        expectedHeaders["ip"] = "127.0.0.1" // getIPAddress() ?: ""
-        expectedHeaders["channel"] = "Mobile"
-        expectedHeaders["Accept"] = "application/json"
-        expectedHeaders["tenant-company-id"] = "GAR"
-        expectedHeaders["tenant-geolocation"] = "TUR"
-        expectedHeaders["client-id"] = "asdasdasdasdasd892438sadsa"
-        expectedHeaders["Authorization"] = "Bearer dsakldjklasjklas"
+        expectedHeaders["dialect"] = dialect
+        expectedHeaders["ip"] = ip
+        expectedHeaders["channel"] = channel
+        expectedHeaders["Accept"] = accept
+        expectedHeaders["tenant-company-id"] = tenantCompanyId
+        expectedHeaders["tenant-geolocation"] = tenantGeolocation
+        expectedHeaders["client-id"] = clientId
+        expectedHeaders["Authorization"] = authorization
         return expectedHeaders
     }
 
@@ -147,8 +190,24 @@ class MainFragment : Fragment() {
         onHeaderContentTypeChange: (TextFieldValue) -> Unit,
         headerGuid: TextFieldValue,
         onHeaderGuidChange: (TextFieldValue) -> Unit,
-        queryUnmasked: TextFieldValue,
-        onQueryUnmaskedChange: (TextFieldValue) -> Unit,
+        headerDialect: TextFieldValue,
+        onHeaderDialectChange: (TextFieldValue) -> Unit,
+        headerIp: TextFieldValue,
+        onHeaderIpChange: (TextFieldValue) -> Unit,
+        headerChannel: TextFieldValue,
+        onHeaderChannelChange: (TextFieldValue) -> Unit,
+        headerAccept: TextFieldValue,
+        onHeaderAcceptChange: (TextFieldValue) -> Unit,
+        headerTenantCompanyId: TextFieldValue,
+        onHeaderTenantCompanyIdChange: (TextFieldValue) -> Unit,
+        headerTenantGeolocation: TextFieldValue,
+        onHeaderTenantGeolocationChange: (TextFieldValue) -> Unit,
+        headerClientId: TextFieldValue,
+        onHeaderClientIdChange: (TextFieldValue) -> Unit,
+        headerAuthorization: TextFieldValue,
+        onHeaderAuthorizationChange: (TextFieldValue) -> Unit,
+        queryUnmasked: String,
+        onQueryUnmaskedChange: (String) -> Unit,
         queryContactDetailType: TextFieldValue,
         onQueryContactDetailTypeChange: (TextFieldValue) -> Unit
     ) {
@@ -156,7 +215,7 @@ class MainFragment : Fragment() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp)
-                .verticalScroll(rememberScrollState()) // Bu satırı ekledik
+                .verticalScroll(rememberScrollState())
         ) {
             OutlinedTextField(
                 value = endpoint,
@@ -202,13 +261,69 @@ class MainFragment : Fragment() {
                 label = { Text("GUID") }
             )
 
-            Text(text = "Query Parameters", style = MaterialTheme.typography.h6, modifier = Modifier.padding(vertical = 8.dp))
+            OutlinedTextField(
+                value = headerDialect,
+                onValueChange = onHeaderDialectChange,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                label = { Text("Dialect") }
+            )
 
             OutlinedTextField(
-                value = queryUnmasked,
-                onValueChange = onQueryUnmaskedChange,
+                value = headerIp,
+                onValueChange = onHeaderIpChange,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                label = { Text("Unmasked") }
+                label = { Text("IP") }
+            )
+
+            OutlinedTextField(
+                value = headerChannel,
+                onValueChange = onHeaderChannelChange,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                label = { Text("Channel") }
+            )
+
+            OutlinedTextField(
+                value = headerAccept,
+                onValueChange = onHeaderAcceptChange,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                label = { Text("Accept") }
+            )
+
+            OutlinedTextField(
+                value = headerTenantCompanyId,
+                onValueChange = onHeaderTenantCompanyIdChange,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                label = { Text("Tenant Company ID") }
+            )
+
+            OutlinedTextField(
+                value = headerTenantGeolocation,
+                onValueChange = onHeaderTenantGeolocationChange,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                label = { Text("Tenant Geolocation") }
+            )
+
+            OutlinedTextField(
+                value = headerClientId,
+                onValueChange = onHeaderClientIdChange,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                label = { Text("Client ID") }
+            )
+
+            OutlinedTextField(
+                value = headerAuthorization,
+                onValueChange = onHeaderAuthorizationChange,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                label = { Text("Authorization") }
+            )
+
+            Text(text = "Query Parameters", style = MaterialTheme.typography.h6, modifier = Modifier.padding(vertical = 8.dp))
+
+            CustomDropdownMenu(
+                options = listOf("false", "true"),
+                selectedOption = queryUnmasked,
+                onOptionSelected = onQueryUnmaskedChange,
+                label = "Unmasked"
             )
 
             OutlinedTextField(
