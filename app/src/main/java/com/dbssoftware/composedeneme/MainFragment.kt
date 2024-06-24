@@ -34,111 +34,147 @@ class MainFragment : Fragment() {
     ): View {
         return ComposeView(requireContext()).apply {
             setContent {
-                var showProgressBar by remember { mutableStateOf(false) }
-                var shouldMakeApiCall by remember { mutableStateOf(false) }
-                var endpoint by remember { mutableStateOf(TextFieldValue()) }
-                var route by remember { mutableStateOf(TextFieldValue()) }
-                var selectedMethod by remember { mutableStateOf("GET") }
-                var selectedAsync by remember { mutableStateOf("Async") }
-                var headerContentType by remember { mutableStateOf(TextFieldValue("application/json")) }
-                var headerGuid by remember { mutableStateOf(TextFieldValue()) }
-                var headerDialect by remember { mutableStateOf(TextFieldValue("TR")) }
-                var headerIp by remember { mutableStateOf(TextFieldValue("127.0.0.1")) }
-                var headerChannel by remember { mutableStateOf(TextFieldValue("Mobile")) }
-                var headerAccept by remember { mutableStateOf(TextFieldValue("application/json")) }
-                var headerTenantCompanyId by remember { mutableStateOf(TextFieldValue("GAR")) }
-                var headerTenantGeolocation by remember { mutableStateOf(TextFieldValue("TUR")) }
-                var headerClientId by remember { mutableStateOf(TextFieldValue("asdasdasdasdasd892438sadsa")) }
-                var headerAuthorization by remember { mutableStateOf(TextFieldValue("Bearer dsakldjklasjklas")) }
-                var queryUnmasked by remember { mutableStateOf("false") }
-                var queryContactDetailType by remember { mutableStateOf(TextFieldValue("MOBILE")) }
-                var response by remember { mutableStateOf("") }
+                MainFragmentContent()
+            }
+        }
+    }
 
-                Scaffold(
-                    topBar = {
-                        TopBar(title = "API Request Screen")
-                    }
-                ) {
-                    Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                        if (showProgressBar) {
-                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                        } else {
-                            ApiRequestScreen(
-                                onCallServiceClicked = {
-                                    showProgressBar = true
-                                    shouldMakeApiCall = true
-                                },
-                                endpoint = endpoint,
-                                onEndpointChange = { endpoint = it },
-                                route = route,
-                                onRouteChange = { route = it },
-                                selectedMethod = selectedMethod,
-                                onMethodChange = { selectedMethod = it },
-                                selectedAsync = selectedAsync,
-                                onAsyncChange = { selectedAsync = it },
-                                headerContentType = headerContentType,
-                                onHeaderContentTypeChange = { headerContentType = it },
-                                headerGuid = headerGuid,
-                                onHeaderGuidChange = { headerGuid = it },
-                                headerDialect = headerDialect,
-                                onHeaderDialectChange = { headerDialect = it },
-                                headerIp = headerIp,
-                                onHeaderIpChange = { headerIp = it },
-                                headerChannel = headerChannel,
-                                onHeaderChannelChange = { headerChannel = it },
-                                headerAccept = headerAccept,
-                                onHeaderAcceptChange = { headerAccept = it },
-                                headerTenantCompanyId = headerTenantCompanyId,
-                                onHeaderTenantCompanyIdChange = { headerTenantCompanyId = it },
-                                headerTenantGeolocation = headerTenantGeolocation,
-                                onHeaderTenantGeolocationChange = { headerTenantGeolocation = it },
-                                headerClientId = headerClientId,
-                                onHeaderClientIdChange = { headerClientId = it },
-                                headerAuthorization = headerAuthorization,
-                                onHeaderAuthorizationChange = { headerAuthorization = it },
-                                queryUnmasked = queryUnmasked,
-                                onQueryUnmaskedChange = { queryUnmasked = it },
-                                queryContactDetailType = queryContactDetailType,
-                                onQueryContactDetailTypeChange = { queryContactDetailType = it }
-                            )
-                        }
-                    }
+    @SuppressLint("UnusedMaterialScaffoldPaddingParameter")
+    @Composable
+    fun MainFragmentContent() {
+        var showProgressBar by remember { mutableStateOf(false) }
+        var shouldMakeApiCall by remember { mutableStateOf(false) }
+        var endpoint by remember { mutableStateOf(TextFieldValue()) }
+        var route by remember { mutableStateOf(TextFieldValue()) }
+        var selectedMethod by remember { mutableStateOf("GET") }
+        var selectedAsync by remember { mutableStateOf("Async") }
+        var headerContentType by remember { mutableStateOf(TextFieldValue("application/json")) }
+        var headerGuid by remember { mutableStateOf(TextFieldValue()) }
+        var headerDialect by remember { mutableStateOf(TextFieldValue("TR")) }
+        var headerIp by remember { mutableStateOf(TextFieldValue("127.0.0.1")) }
+        var headerChannel by remember { mutableStateOf(TextFieldValue("Mobile")) }
+        var headerAccept by remember { mutableStateOf(TextFieldValue("application/json")) }
+        var headerTenantCompanyId by remember { mutableStateOf(TextFieldValue("GAR")) }
+        var headerTenantGeolocation by remember { mutableStateOf(TextFieldValue("TUR")) }
+        var headerClientId by remember { mutableStateOf(TextFieldValue("asdasdasdasdasd892438sadsa")) }
+        var headerAuthorization by remember { mutableStateOf(TextFieldValue("Bearer dsakldjklasjklas")) }
+        var queryUnmasked by remember { mutableStateOf("false") }
+        var queryContactDetailType by remember { mutableStateOf(TextFieldValue("MOBILE")) }
+        var response by remember { mutableStateOf("") }
 
-                    if (shouldMakeApiCall) {
-                        LaunchedEffect(Unit) {
-                            delay(2000) // Simulate network delay
-
-                            val requestHeader = getDefaultHeaders(
-                                headerContentType.text,
-                                headerGuid.text,
-                                headerDialect.text,
-                                headerIp.text,
-                                headerChannel.text,
-                                headerAccept.text,
-                                headerTenantCompanyId.text,
-                                headerTenantGeolocation.text,
-                                headerClientId.text,
-                                headerAuthorization.text
-                            )
-                            val requestQuery = getQueryMap(
-                                queryUnmasked,
-                                queryContactDetailType.text
-                            )
-
-                            response = "Sample Response" // This would be the actual API response
-                            showProgressBar = false
-                            shouldMakeApiCall = false
-                            findNavController().navigate(
-                                MainFragmentDirections.actionMainFragmentToResponseFragment(
-                                    requestHeader.toString(),
-                                    requestQuery.toString(),
-                                    response
-                                )
-                            )
-                        }
-                    }
+        Scaffold(
+            topBar = {
+                TopBar(title = "API Request Screen")
+            }
+        ) {
+            Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                if (showProgressBar) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                } else {
+                    ApiRequestForm(
+                        onCallServiceClicked = {
+                            showProgressBar = true
+                            shouldMakeApiCall = true
+                        },
+                        endpoint = endpoint,
+                        onEndpointChange = { endpoint = it },
+                        route = route,
+                        onRouteChange = { route = it },
+                        selectedMethod = selectedMethod,
+                        onMethodChange = { selectedMethod = it },
+                        selectedAsync = selectedAsync,
+                        onAsyncChange = { selectedAsync = it },
+                        headerContentType = headerContentType,
+                        onHeaderContentTypeChange = { headerContentType = it },
+                        headerGuid = headerGuid,
+                        onHeaderGuidChange = { headerGuid = it },
+                        headerDialect = headerDialect,
+                        onHeaderDialectChange = { headerDialect = it },
+                        headerIp = headerIp,
+                        onHeaderIpChange = { headerIp = it },
+                        headerChannel = headerChannel,
+                        onHeaderChannelChange = { headerChannel = it },
+                        headerAccept = headerAccept,
+                        onHeaderAcceptChange = { headerAccept = it },
+                        headerTenantCompanyId = headerTenantCompanyId,
+                        onHeaderTenantCompanyIdChange = { headerTenantCompanyId = it },
+                        headerTenantGeolocation = headerTenantGeolocation,
+                        onHeaderTenantGeolocationChange = { headerTenantGeolocation = it },
+                        headerClientId = headerClientId,
+                        onHeaderClientIdChange = { headerClientId = it },
+                        headerAuthorization = headerAuthorization,
+                        onHeaderAuthorizationChange = { headerAuthorization = it },
+                        queryUnmasked = queryUnmasked,
+                        onQueryUnmaskedChange = { queryUnmasked = it },
+                        queryContactDetailType = queryContactDetailType,
+                        onQueryContactDetailTypeChange = { queryContactDetailType = it }
+                    )
                 }
             }
+
+            if (shouldMakeApiCall) {
+                HandleApiCall(
+                    headerContentType.text,
+                    headerGuid.text,
+                    headerDialect.text,
+                    headerIp.text,
+                    headerChannel.text,
+                    headerAccept.text,
+                    headerTenantCompanyId.text,
+                    headerTenantGeolocation.text,
+                    headerClientId.text,
+                    headerAuthorization.text,
+                    queryUnmasked,
+                    queryContactDetailType.text,
+                    onResponseReceived = { apiResponse ->
+                        response = apiResponse
+                        showProgressBar = false
+                        shouldMakeApiCall = false
+                        findNavController().navigate(
+                            MainFragmentDirections.actionMainFragmentToResponseFragment(
+                                getDefaultHeaders(
+                                    headerContentType.text,
+                                    headerGuid.text,
+                                    headerDialect.text,
+                                    headerIp.text,
+                                    headerChannel.text,
+                                    headerAccept.text,
+                                    headerTenantCompanyId.text,
+                                    headerTenantGeolocation.text,
+                                    headerClientId.text,
+                                    headerAuthorization.text
+                                ).toString(),
+                                getQueryMap(queryUnmasked, queryContactDetailType.text).toString(),
+                                response
+                            )
+                        )
+                    }
+                )
+            }
+        }
+    }
+
+    @Composable
+    fun HandleApiCall(
+        contentType: String,
+        guid: String,
+        dialect: String,
+        ip: String,
+        channel: String,
+        accept: String,
+        tenantCompanyId: String,
+        tenantGeolocation: String,
+        clientId: String,
+        authorization: String,
+        unmasked: String,
+        contactDetailType: String,
+        onResponseReceived: (String) -> Unit
+    ) {
+        LaunchedEffect(Unit) {
+            delay(2000) // Simulate network delay
+            // Simulate API response
+            val apiResponse = "Sample Response"
+            onResponseReceived(apiResponse)
         }
     }
 
@@ -176,7 +212,7 @@ class MainFragment : Fragment() {
     }
 
     @Composable
-    fun ApiRequestScreen(
+    fun ApiRequestForm(
         onCallServiceClicked: () -> Unit,
         endpoint: TextFieldValue,
         onEndpointChange: (TextFieldValue) -> Unit,

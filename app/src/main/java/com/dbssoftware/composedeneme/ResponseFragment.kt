@@ -30,8 +30,8 @@ class ResponseFragment : Fragment() {
         return ComposeView(requireContext()).apply {
             setContent {
                 ResponseScreen(
-                    requestHeader = args.requestHeader,
-                    requestQuery = args.requestQuery,
+                    requestHeader = beautifyJsonString(args.requestHeader),
+                    requestQuery = beautifyJsonString(args.requestQuery),
                     response = args.response
                 )
             }
@@ -64,5 +64,32 @@ class ResponseFragment : Fragment() {
                 Text(text = response, modifier = Modifier.padding(vertical = 8.dp))
             }
         }
+    }
+
+    fun beautifyJsonString(jsonString: String): String {
+        val stringBuilder = StringBuilder()
+        var indentLevel = 0
+        val indentString = "    " // 4 boşluklu girinti
+
+        for (char in jsonString) {
+            when (char) {
+                '{', '[' -> {
+                    stringBuilder.append(char).append("\n")
+                    indentLevel++
+                    stringBuilder.append(indentString.repeat(indentLevel))
+                }
+                '}', ']' -> {
+                    stringBuilder.append("\n")
+                    indentLevel--
+                    stringBuilder.append(indentString.repeat(indentLevel)).append(char)
+                }
+                ',' -> {
+                    stringBuilder.append(char).append("\n")
+                    stringBuilder.append(indentString.repeat(indentLevel))
+                }
+                else -> stringBuilder.append(char)
+            }
+        }
+        return stringBuilder.toString()
     }
 }
