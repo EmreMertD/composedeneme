@@ -1,54 +1,54 @@
-import androidx.arch.core.executor.testing.InstantTaskExecutorRule
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.mockk
-import io.mockk.slot
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TestRule
-import org.junit.Before
-import org.junit.rules.TestRule
-import org.junit.runner.RunWith
-import org.junit.runners.JUnit4
+import kotlin.test.assertEquals
 
-@ExperimentalCoroutinesApi
-@RunWith(JUnit4::class)
-class MainActivityViewModelTest {
+class CallCenterCallResultTest {
 
-    @get:Rule
-    var instantExecutorRule: TestRule = InstantTaskExecutorRule()
+    @Test
+    fun `should create CallCenterCallResult with correct data`() {
+        // Given
+        val result = Result(returnCode = 200L, reasonCode = 100L, messageText = "Success")
+        val campaignResponseList = listOf(
+            CampaignResponseList(responesNum = 1L, followUpCode = 101L, responseNameText = "Campaign 1"),
+            CampaignResponseList(responesNum = 2L, followUpCode = 102L, responseNameText = "Campaign 2")
+        )
 
-    private lateinit var viewModel: MainActivityViewModel
-    private val apiInvoker: DigitalApiInvoker = mockk(relaxed = true)
-    private val endpoint = "test_endpoint"
-    private val header = hashMapOf("key" to "value")
-    private val queryMap = hashMapOf("key" to "value")
-    private val body = hashMapOf("key" to "value")
+        // When
+        val callCenterCallResult = CallCenterCallResult(campaignResponseList = campaignResponseList, result = result)
 
-    @Before
-    fun setUp() {
-        viewModel = MainActivityViewModel(apiInvoker)
+        // Then
+        assertEquals(result, callCenterCallResult.result)
+        assertEquals(campaignResponseList, callCenterCallResult.campaignResponseList)
     }
 
     @Test
-    fun `callExampleServicePost should call apiInvoker post`() = runBlockingTest {
-        val callbackSlot = slot<ApiCallback<CallCenterCallResult>>()
+    fun `should create CampaignResponseList with correct data`() {
+        // Given
+        val responesNum = 1L
+        val followUpCode = 101L
+        val responseNameText = "Campaign 1"
 
-        coEvery {
-            apiInvoker.post(any(), capture(callbackSlot))
-        } answers {
-            callbackSlot.captured.onStarted()
-            callbackSlot.captured.onSuccess(mockk {
-                every { data } returns "Success"
-            })
-        }
+        // When
+        val campaignResponseList = CampaignResponseList(responesNum = responesNum, followUpCode = followUpCode, responseNameText = responseNameText)
 
-        viewModel.callExampleServicePost(endpoint, header, queryMap, body)
+        // Then
+        assertEquals(responesNum, campaignResponseList.responesNum)
+        assertEquals(followUpCode, campaignResponseList.followUpCode)
+        assertEquals(responseNameText, campaignResponseList.responseNameText)
+    }
 
-        coVerify {
-            apiInvoker.post(any(), any())
-        }
+    @Test
+    fun `should create Result with correct data`() {
+        // Given
+        val returnCode = 200L
+        val reasonCode = 100L
+        val messageText = "Success"
+
+        // When
+        val result = Result(returnCode = returnCode, reasonCode = reasonCode, messageText = messageText)
+
+        // Then
+        assertEquals(returnCode, result.returnCode)
+        assertEquals(reasonCode, result.reasonCode)
+        assertEquals(messageText, result.messageText)
     }
 }
