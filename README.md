@@ -1,44 +1,54 @@
-package com.dbssoftware.composedeneme
-
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.hasContentDescription
-import androidx.compose.ui.test.assertIsDisplayed
+import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.mockk
+import io.mockk.slot
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runBlockingTest
 import org.junit.Rule
 import org.junit.Test
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
+import org.junit.rules.TestRule
+import org.junit.Before
+import org.junit.rules.TestRule
+import org.junit.runner.RunWith
+import org.junit.runners.JUnit4
 
-class TopBarTest {
+@ExperimentalCoroutinesApi
+@RunWith(JUnit4::class)
+class MainActivityViewModelTest {
 
     @get:Rule
-    val composeTestRule = createComposeRule()
+    var instantExecutorRule: TestRule = InstantTaskExecutorRule()
 
-    @Test
-    fun topBarTitleDisplaysCorrectly() {
-        composeTestRule.setContent {
-            TopBar(title = "Home")
-        }
+    private lateinit var viewModel: MainActivityViewModel
+    private val apiInvoker: DigitalApiInvoker = mockk(relaxed = true)
+    private val endpoint = "test_endpoint"
+    private val header = hashMapOf("key" to "value")
+    private val queryMap = hashMapOf("key" to "value")
+    private val body = hashMapOf("key" to "value")
 
-        composeTestRule.onNodeWithText("Home").assertIsDisplayed()
+    @Before
+    fun setUp() {
+        viewModel = MainActivityViewModel(apiInvoker)
     }
 
     @Test
-    fun navigationIconDisplaysAndClickable() {
-        var clicked = false
-        composeTestRule.setContent {
-            TopBar(
-                title = "Home",
-                navigationIcon = Icons.Filled.Menu,
-                navigationIconClick = { clicked = true }
-            )
+    fun `callExampleServicePost should call apiInvoker post`() = runBlockingTest {
+        val callbackSlot = slot<ApiCallback<CallCenterCallResult>>()
+
+        coEvery {
+            apiInvoker.post(any(), capture(callbackSlot))
+        } answers {
+            callbackSlot.captured.onStarted()
+            callbackSlot.captured.onSuccess(mockk {
+                every { data } returns "Success"
+            })
         }
 
-        val navIcon = composeTestRule.onNode(hasContentDescription("Back"))
-        navIcon.assertIsDisplayed()
-        navIcon.performClick()
-        assert(clicked)
+        viewModel.callExampleServicePost(endpoint, header, queryMap, body)
+
+        coVerify {
+            apiInvoker.post(any(), any())
+        }
     }
 }
