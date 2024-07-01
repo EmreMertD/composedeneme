@@ -1,54 +1,92 @@
 import org.junit.Test
 import kotlin.test.assertEquals
 
-class CallCenterCallResultTest {
+class ContactDataResponseTest {
 
     @Test
-    fun `should create CallCenterCallResult with correct data`() {
+    fun `should create ContactDataOutput with correct data`() {
         // Given
-        val result = Result(returnCode = 200L, reasonCode = 100L, messageText = "Success")
-        val campaignResponseList = listOf(
-            CampaignResponseList(responesNum = 1L, followUpCode = 101L, responseNameText = "Campaign 1"),
-            CampaignResponseList(responesNum = 2L, followUpCode = 102L, responseNameText = "Campaign 2")
+        val contactInfo = ContactInfo(
+            contactDetailType = "Phone",
+            countryCode = "1",
+            number = "1234567890",
+            receivesNotifications = true
+        )
+        val contactDataOutput = ContactDataOutput(
+            id = "123",
+            isPreferential = true,
+            contact = contactInfo
         )
 
         // When
-        val callCenterCallResult = CallCenterCallResult(campaignResponseList = campaignResponseList, result = result)
+        val expectedId = "123"
+        val expectedIsPreferential = true
+        val expectedContactInfo = contactInfo
 
         // Then
-        assertEquals(result, callCenterCallResult.result)
-        assertEquals(campaignResponseList, callCenterCallResult.campaignResponseList)
+        assertEquals(expectedId, contactDataOutput.id)
+        assertEquals(expectedIsPreferential, contactDataOutput.isPreferential)
+        assertEquals(expectedContactInfo, contactDataOutput.contact)
     }
 
     @Test
-    fun `should create CampaignResponseList with correct data`() {
+    fun `should create ContactDataResponse with correct data`() {
         // Given
-        val responesNum = 1L
-        val followUpCode = 101L
-        val responseNameText = "Campaign 1"
+        val contactInfo1 = ContactInfo(
+            contactDetailType = "Phone",
+            countryCode = "1",
+            number = "1234567890",
+            receivesNotifications = true
+        )
+        val contactDataOutput1 = ContactDataOutput(
+            id = "123",
+            isPreferential = true,
+            contact = contactInfo1
+        )
+
+        val contactInfo2 = ContactInfo(
+            contactDetailType = "Email",
+            countryCode = "1",
+            number = "example@example.com",
+            receivesNotifications = false
+        )
+        val contactDataOutput2 = ContactDataOutput(
+            id = "124",
+            isPreferential = false,
+            contact = contactInfo2
+        )
+
+        val contactDataResponse = ContactDataResponse(
+            data = listOf(contactDataOutput1, contactDataOutput2)
+        )
 
         // When
-        val campaignResponseList = CampaignResponseList(responesNum = responesNum, followUpCode = followUpCode, responseNameText = responseNameText)
+        val expectedData = listOf(contactDataOutput1, contactDataOutput2)
 
         // Then
-        assertEquals(responesNum, campaignResponseList.responesNum)
-        assertEquals(followUpCode, campaignResponseList.followUpCode)
-        assertEquals(responseNameText, campaignResponseList.responseNameText)
+        assertEquals(expectedData, contactDataResponse.data)
     }
 
     @Test
-    fun `should create Result with correct data`() {
+    fun `should create ContactInfo with correct data`() {
         // Given
-        val returnCode = 200L
-        val reasonCode = 100L
-        val messageText = "Success"
+        val contactInfo = ContactInfo(
+            contactDetailType = "Phone",
+            countryCode = "1",
+            number = "1234567890",
+            receivesNotifications = true
+        )
 
         // When
-        val result = Result(returnCode = returnCode, reasonCode = reasonCode, messageText = messageText)
+        val expectedContactDetailType = "Phone"
+        val expectedCountryCode = "1"
+        val expectedNumber = "1234567890"
+        val expectedReceivesNotifications = true
 
         // Then
-        assertEquals(returnCode, result.returnCode)
-        assertEquals(reasonCode, result.reasonCode)
-        assertEquals(messageText, result.messageText)
+        assertEquals(expectedContactDetailType, contactInfo.contactDetailType)
+        assertEquals(expectedCountryCode, contactInfo.countryCode)
+        assertEquals(expectedNumber, contactInfo.number)
+        assertEquals(expectedReceivesNotifications, contactInfo.receivesNotifications)
     }
 }
