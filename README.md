@@ -1,92 +1,100 @@
 import org.junit.Test
 import kotlin.test.assertEquals
 
-class ContactDataResponseTest {
+class CustomJsonBeautifierTest {
 
     @Test
-    fun `should create ContactDataOutput with correct data`() {
+    fun `beautifyJsonString should format JSON string with proper indentation`() {
         // Given
-        val contactInfo = ContactInfo(
-            contactDetailType = "Phone",
-            countryCode = "1",
-            number = "1234567890",
-            receivesNotifications = true
-        )
-        val contactDataOutput = ContactDataOutput(
-            id = "123",
-            isPreferential = true,
-            contact = contactInfo
-        )
+        val jsonString = """{"name":"John","age":30,"city":"New York"}"""
+        val expectedFormattedJson = """
+            {
+                "name": "John",
+                "age": 30,
+                "city": "New York"
+            }
+        """.trimIndent()
 
         // When
-        val expectedId = "123"
-        val expectedIsPreferential = true
-        val expectedContactInfo = contactInfo
+        val formattedJson = CustomJsonBeautifier.beautifyJsonString(jsonString)
 
         // Then
-        assertEquals(expectedId, contactDataOutput.id)
-        assertEquals(expectedIsPreferential, contactDataOutput.isPreferential)
-        assertEquals(expectedContactInfo, contactDataOutput.contact)
+        assertEquals(expectedFormattedJson, formattedJson)
     }
 
     @Test
-    fun `should create ContactDataResponse with correct data`() {
+    fun `beautifyJsonString should handle nested JSON objects correctly`() {
         // Given
-        val contactInfo1 = ContactInfo(
-            contactDetailType = "Phone",
-            countryCode = "1",
-            number = "1234567890",
-            receivesNotifications = true
-        )
-        val contactDataOutput1 = ContactDataOutput(
-            id = "123",
-            isPreferential = true,
-            contact = contactInfo1
-        )
-
-        val contactInfo2 = ContactInfo(
-            contactDetailType = "Email",
-            countryCode = "1",
-            number = "example@example.com",
-            receivesNotifications = false
-        )
-        val contactDataOutput2 = ContactDataOutput(
-            id = "124",
-            isPreferential = false,
-            contact = contactInfo2
-        )
-
-        val contactDataResponse = ContactDataResponse(
-            data = listOf(contactDataOutput1, contactDataOutput2)
-        )
+        val jsonString = """{"name":"John","address":{"city":"New York","zip":"10001"}}"""
+        val expectedFormattedJson = """
+            {
+                "name": "John",
+                "address": {
+                    "city": "New York",
+                    "zip": "10001"
+                }
+            }
+        """.trimIndent()
 
         // When
-        val expectedData = listOf(contactDataOutput1, contactDataOutput2)
+        val formattedJson = CustomJsonBeautifier.beautifyJsonString(jsonString)
 
         // Then
-        assertEquals(expectedData, contactDataResponse.data)
+        assertEquals(expectedFormattedJson, formattedJson)
     }
 
     @Test
-    fun `should create ContactInfo with correct data`() {
+    fun `beautifyJsonString should handle empty JSON objects correctly`() {
         // Given
-        val contactInfo = ContactInfo(
-            contactDetailType = "Phone",
-            countryCode = "1",
-            number = "1234567890",
-            receivesNotifications = true
-        )
+        val jsonString = """{}"""
+        val expectedFormattedJson = """
+            {
+                
+            }
+        """.trimIndent()
 
         // When
-        val expectedContactDetailType = "Phone"
-        val expectedCountryCode = "1"
-        val expectedNumber = "1234567890"
-        val expectedReceivesNotifications = true
+        val formattedJson = CustomJsonBeautifier.beautifyJsonString(jsonString)
 
         // Then
-        assertEquals(expectedContactDetailType, contactInfo.contactDetailType)
-        assertEquals(expectedCountryCode, contactInfo.countryCode)
-        assertEquals(expectedNumber, contactInfo.number)
-        assertEquals(expectedReceivesNotifications, contactInfo.receivesNotifications)
+        assertEquals(expectedFormattedJson, formattedJson)
+    }
+
+    @Test
+    fun `beautifyJsonString should handle empty JSON arrays correctly`() {
+        // Given
+        val jsonString = """[]"""
+        val expectedFormattedJson = """
+            [
+                
+            ]
+        """.trimIndent()
+
+        // When
+        val formattedJson = CustomJsonBeautifier.beautifyJsonString(jsonString)
+
+        // Then
+        assertEquals(expectedFormattedJson, formattedJson)
+    }
+
+    @Test
+    fun `beautifyJsonString should handle nested JSON arrays correctly`() {
+        // Given
+        val jsonString = """{"name":"John","phones":["123-4567","234-5678"]}"""
+        val expectedFormattedJson = """
+            {
+                "name": "John",
+                "phones": [
+                    "123-4567",
+                    "234-5678"
+                ]
+            }
+        """.trimIndent()
+
+        // When
+        val formattedJson = CustomJsonBeautifier.beautifyJsonString(jsonString)
+
+        // Then
+        assertEquals(expectedFormattedJson, formattedJson)
     }
 }
