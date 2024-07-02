@@ -8,8 +8,8 @@ class HeaderTest {
     @Test
     fun `test Header put function`() {
         val header = Header.Builder()
-            .add("key1", "value1")
-            .add("key2", "value2")
+            .put("key1", "value1")
+            .put("key2", "value2")
             .build()
 
         assertEquals("value1", header["key1"])
@@ -20,7 +20,7 @@ class HeaderTest {
     fun `test Header putAll function`() {
         val headersMap = hashMapOf("key1" to "value1", "key2" to "value2")
         val header = Header.Builder()
-            .addAll(headersMap)
+            .putAll(headersMap)
             .build()
 
         assertEquals("value1", header["key1"])
