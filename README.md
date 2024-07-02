@@ -1,62 +1,67 @@
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runTest
 import org.junit.Test
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
-@OptIn(ExperimentalCoroutinesApi::class)
-class DigitalNetworkHandlerTest {
-
-    private val mockNetworkHandler: NetworkHandler = mock()
-    private val mockDigitalNetwork: Network = mock()
+class HeaderTest {
 
     @Test
-    fun testGet() = runTest {
-        val route = "test/route"
-        val headerMap = hashMapOf<String, String>()
-        val queryMap = hashMapOf<String, String>()
-        val expectedResponse = ApiResult.Success(ApiResponse("success"))
+    fun `test Header put function`() {
+        val header = Header.Builder()
+            .add("key1", "value1")
+            .add("key2", "value2")
+            .build()
 
-        whenever(mockNetworkHandler.get<ApiResponse>(
-            route = route,
-            headerMap = headerMap,
-            queryMap = queryMap
-        )).thenReturn(expectedResponse)
-
-        val result = DigitalNetworkHandler.get<ApiResponse>(
-            route = route,
-            headerMap = headerMap,
-            queryMap = queryMap,
-            digitalNetwork = mockDigitalNetwork
-        )
-
-        assertEquals(expected = expectedResponse, actual = result)
+        assertEquals("value1", header["key1"])
+        assertEquals("value2", header["key2"])
     }
 
     @Test
-    fun testPost() = runTest {
-        val route = "test/route"
-        val headerMap = hashMapOf<String, String>()
-        val queryMap = hashMapOf<String, String>()
-        val body = hashMapOf<String, Any>()
-        val expectedResponse = ApiResult.Success(ApiResponse("success"))
+    fun `test Header putAll function`() {
+        val headersMap = hashMapOf("key1" to "value1", "key2" to "value2")
+        val header = Header.Builder()
+            .addAll(headersMap)
+            .build()
 
-        whenever(mockNetworkHandler.post<ApiResponse>(
-            route = route,
-            headerMap = headerMap,
-            queryMap = queryMap,
-            body = body
-        )).thenReturn(expectedResponse)
+        assertEquals("value1", header["key1"])
+        assertEquals("value2", header["key2"])
+    }
 
-        val result = DigitalNetworkHandler.post<ApiResponse>(
-            route = route,
-            headerMap = headerMap,
-            queryMap = queryMap,
-            body = body,
-            digitalNetwork = mockDigitalNetwork
-        )
+    @Test
+    fun `test Header useDefaults function`() {
+        val header = Header.Builder()
+            .useDefaults()
+            .build()
 
-        assertEquals(expected = expectedResponse, actual = result)
+        assertNotNull(header["CONTENT_TYPE"])
+        assertNotNull(header["GUID"])
+        assertNotNull(header["DIALECT"])
+        assertNotNull(header["CHANNEL"])
+        assertNotNull(header["ACCEPT"])
+        assertNotNull(header["TENANT_COMPANY_ID"])
+        assertNotNull(header["TENANT_GEO_LOCATION"])
+        assertNotNull(header["IP"])
+    }
+
+    @Test
+    fun `test Header putIfAbsent function`() {
+        val header = Header.Builder()
+            .put("key1", "value1")
+            .putIfAbsent("key1", "newValue1")
+            .putIfAbsent("key2", "value2")
+            .build()
+
+        assertEquals("value1", header["key1"]) // should not be replaced
+        assertEquals("value2", header["key2"]) // should be added
+    }
+
+    @Test
+    fun `test Header get function`() {
+        val header = Header.Builder()
+            .put("key1", "value1")
+            .build()
+
+        assertEquals("value1", header["key1"])
+        assertNull(header["key2"])
     }
 }
