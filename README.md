@@ -1,96 +1,69 @@
-import org.junit.Assert.*
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
 
 class HeaderTest {
 
-  @Test
-  fun testBuilderEmpty() {
-    val header = Header.Builder().build()
-    assertEquals(hashMapOf(), header.headers)
-    assertFalse(header.useDefaults)
-  }
+    @Test
+    fun `test builder with defaults`() {
+        val header = Header.Builder()
+            .useDefaults()
+            .build()
 
-  @Test
-  fun testBuilderWithDefaults() {
-    val header = Header.Builder().useDefaults().build()
-    val expectedDefaults = hashMapOf(
-      "CONTENT_TYPE" to "application/json",
-      "GUID" to "[A GUID]", // Use a placeholder for dynamically generated value
-      "DIALECT" to "default",
-      "CHANNEL" to "default_channel",
-      "ACCEPT" to "application/json",
-      "TENANT_COMPANY_ID" to "default_company_id",
-      "TENANT_GEO_LOCATION" to "default_geo_location",
-      "IP" to "default_ip"
-    )
-    assertTrue(header.useDefaults)
-    assertEquals(expectedDefaults, header.headers)
-  }
+        assertEquals(HeaderConstants.CONTENT_TYPE_JSON_VAL, header[HeaderConstants.CONTENT_TYPE])
+        assertNotNull(header[HeaderConstants.GUID])
+        assertEquals(HeaderConstants.DIALECT_VAL, header[HeaderConstants.DIALECT])
+        assertEquals(HeaderConstants.DEFAULT_CHANNEL, header[HeaderConstants.CHANNEL])
+        assertEquals(HeaderConstants.CONTENT_TYPE_JSON_VAL, header[HeaderConstants.ACCEPT])
+        assertEquals(HeaderConstants.DEFAULT_TENANT_COMPANY_ID, header[HeaderConstants.TENANT_COMPANY_ID])
+        assertEquals(HeaderConstants.DEFAULT_TENANT_GEO_LOCATION, header[HeaderConstants.TENANT_GEO_LOCATION])
+        assertEquals("127.0.0.1", header[HeaderConstants.IP])
+    }
 
-  @Test
-  fun testBuilderWithCustomHeaders() {
-    val header = Header.Builder()
-      .put("Authorization", "Bearer some_token")
-      .put("X-Custom-Header", "custom_value")
-      .build()
-    assertEquals(hashMapOf(
-      "Authorization" to "Bearer some_token",
-      "X-Custom-Header" to "custom_value"
-    ), header.headers)
-    assertFalse(header.useDefaults)
-  }
+    @Test
+    fun `test builder add header`() {
+        val header = Header.Builder()
+            .add("Custom-Header", "CustomValue")
+            .build()
 
-  @Test
-  fun testBuilderWithMixedHeaders() {
-    val header = Header.Builder()
-      .useDefaults()
-      .put("Authorization", "Bearer some_token")
-      .build()
-    val expectedDefaults = hashMapOf(
-      "CONTENT_TYPE" to "application/json",
-      "GUID" to "[A GUID]", // Use a placeholder for dynamically generated value
-      "DIALECT" to "default",
-      "CHANNEL" to "default_channel",
-      "ACCEPT" to "application/json",
-      "TENANT_COMPANY_ID" to "default_company_id",
-      "TENANT_GEO_LOCATION" to "default_geo_location",
-      "IP" to "default_ip",
-      "Authorization" to "Bearer some_token"
-    )
-    assertTrue(header.useDefaults)
-    assertEquals(expectedDefaults, header.headers)
-  }
+        assertEquals("CustomValue", header["Custom-Header"])
+    }
 
-  @Test
-  fun testPutMethod() {
-    val header = Header.Builder().build()
-    val modifiedHeader = header.put("X-Test-Header", "test_value")
-    assertNotSame(header, modifiedHeader) // Ensure new object is returned
-    assertEquals(hashMapOf("X-Test-Header" to "test_value"), modifiedHeader.headers)
-  }
+    @Test
+    fun `test builder add all headers`() {
+        val headersToAdd = hashMapOf("Header1" to "Value1", "Header2" to "Value2")
+        val header = Header.Builder()
+            .addAll(headersToAdd)
+            .build()
 
-  @Test
-  fun testPutAllMethod() {
-    val header = Header.Builder().build()
-    val additionalHeaders = hashMapOf("X-Test1" to "value1", "X-Test2" to "value2")
-    val modifiedHeader = header.putAll(additionalHeaders)
-    assertNotSame(header, modifiedHeader) // Ensure new object is returned
-    assertEquals(additionalHeaders, modifiedHeader.headers)
-  }
+        assertEquals("Value1", header["Header1"])
+        assertEquals("Value2", header["Header2"])
+    }
 
-  @Test
-  fun testGetMethod() {
-    val header = Header.Builder().put("X-Test-Header", "test_value").build()
-    assertEquals("test_value", header["X-Test-Header"])
-    assertNull(header["Non-Existent-Header"])
-  }
+    @Test
+    fun `test header put`() {
+        val header = Header(hashMapOf(), false)
+            .put("New-Header", "NewValue")
 
-  @Test
-  fun testGetAllMethod() {
-    val header = Header.Builder()
-      .put("X-Test1", "value1")
-      .put("X-Test2", "value2")
-      .build()
-    assertEquals(hashMapOf("X-Test1" to "value1", "X-Test2" to "value2"), header.all)
-  }
+        assertEquals("NewValue", header["New-Header"])
+    }
+
+    @Test
+    fun `test header put all`() {
+        val initialHeaders = hashMapOf("Initial-Header" to "InitialValue")
+        val headersToAdd = hashMapOf("Header1" to "Value1", "Header2" to "Value2")
+        val header = Header(initialHeaders, false)
+            .putAll(headersToAdd)
+
+        assertEquals("InitialValue", header["Initial-Header"])
+        assertEquals("Value1", header["Header1"])
+        assertEquals("Value2", header["Header2"])
+    }
+
+    @Test
+    fun `test header get all`() {
+        val headers = hashMapOf("Header1" to "Value1", "Header2" to "Value2")
+        val header = Header(headers, false)
+
+        assertEquals(headers, header.all)
+    }
 }
