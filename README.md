@@ -1,4 +1,3 @@
-
 import okhttp3.Interceptor
 import okhttp3.Response
 import java.io.IOException
@@ -12,7 +11,6 @@ class CircuitBreakerInterceptor(
 ) : Interceptor {
 
     private val failureTimestamps = ConcurrentLinkedQueue<Long>()
-    private var lastFailureTime = 0L
     private var circuitOpenedTime = 0L
 
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -23,45 +21,47 @@ class CircuitBreakerInterceptor(
             throw IOException("Circuit breaker is open. Try again later.")
         }
 
-        return try {
-            val response = chain.proceed(chain.request())
-            
-            // Sadece başarılı bir seri istek olursa hataları temizle
-            if (response.isSuccessful) {
-                clearOldFailures(currentTime)
-                if (failureTimestamps.isEmpty()) {
-                    lastFailureTime = 0L
-                    circuitOpenedTime = 0L
-                }
-            }
-
-            response
+        val response = try {
+            chain.proceed(chain.request())
         } catch (e: Exception) {
-            // Hata durumunda failureTimestamps'e zaman damgası ekle
-            failureTimestamps.add(currentTime)
-            lastFailureTime = currentTime
+            handleFailure(currentTime)
+            throw IOException("Circuit breaker is open due to consecutive failures in the last $timeWindowMillis milliseconds.", e)
+        }
 
-            // Eski hataları temizle
-            clearOldFailures(currentTime)
-
-            // Belirlenen süre içinde hatalar eşiği aşarsa circuit breaker açılır
+        // HTTP 200 dışındaki tüm yanıtlar hata olarak kabul edilir
+        if (!response.isSuccessful) {
+            handleFailure(currentTime)
             if (failureTimestamps.size >= failureThreshold) {
                 circuitOpenedTime = currentTime
-                throw IOException("Circuit breaker is open due to consecutive failures in the last $timeWindowMillis milliseconds.", e)
-            } else {
-                throw e
+                throw IOException("Circuit breaker is open due to consecutive failures in the last $timeWindowMillis milliseconds. Last response code: ${response.code}", null)
             }
+        } else {
+            clearOldFailures(currentTime)
+            resetCircuitBreakerIfNecessary()
         }
+
+        return response
     }
 
     private fun isCircuitOpen(currentTime: Long): Boolean {
         return circuitOpenedTime > 0 && (currentTime - circuitOpenedTime < openDurationMillis)
     }
 
+    private fun handleFailure(currentTime: Long) {
+        failureTimestamps.add(currentTime)
+        clearOldFailures(currentTime)
+    }
+
     private fun clearOldFailures(currentTime: Long) {
         // Zaman dilimini aşmış hataları temizle
         while (failureTimestamps.isNotEmpty() && currentTime - failureTimestamps.peek() > timeWindowMillis) {
             failureTimestamps.poll()
+        }
+    }
+
+    private fun resetCircuitBreakerIfNecessary() {
+        if (failureTimestamps.isEmpty()) {
+            circuitOpenedTime = 0L
         }
     }
 }
