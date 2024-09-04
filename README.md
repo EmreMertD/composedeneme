@@ -1,67 +1,71 @@
-import okhttp3.Interceptor
-import okhttp3.Response
-import java.io.IOException
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.TimeUnit
+import android.content.Context
+import android.content.SharedPreferences
+import androidx.test.core.app.ApplicationProvider
+import org.junit.Assert.assertEquals
+import org.junit.Before
+import org.junit.Test
+import org.mockito.Mock
+import org.mockito.Mockito
+import org.mockito.MockitoAnnotations
 
-class CircuitBreakerInterceptor(
-    private val failureThreshold: Int = 10, // Belirlenen süre içinde olması gereken hata sayısı
-    private val timeWindowMillis: Long = TimeUnit.MINUTES.toMillis(5), // Zaman dilimi (5 dakika)
-    private val openDurationMillis: Long = TimeUnit.MINUTES.toMillis(1) // Circuit breaker'ın açık kalacağı süre (1 dakika)
-) : Interceptor {
+class SharedPrefStorageManagerTest {
 
-    private val failureTimestamps = ConcurrentLinkedQueue<Long>()
-    private var circuitOpenedTime = 0L
+    private lateinit var sharedPrefStorageManager: SharedPrefStorageManager
 
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val currentTime = System.currentTimeMillis()
+    @Mock
+    private lateinit var mockSharedPreferences: SharedPreferences
 
-        // Eğer circuit breaker açıksa ve süre dolmadıysa, hata döndür
-        if (isCircuitOpen(currentTime)) {
-            throw IOException("Circuit breaker is open. Try again later.")
-        }
+    @Mock
+    private lateinit var mockEditor: SharedPreferences.Editor
 
-        val response = try {
-            chain.proceed(chain.request())
-        } catch (e: Exception) {
-            handleFailure(currentTime)
-            throw IOException("Circuit breaker is open due to consecutive failures in the last $timeWindowMillis milliseconds.", e)
-        }
+    @Before
+    fun setUp() {
+        MockitoAnnotations.openMocks(this)
+        val context = ApplicationProvider.getApplicationContext<Context>()
 
-        // HTTP 200 dışındaki tüm yanıtlar hata olarak kabul edilir
-        if (!response.isSuccessful) {
-            handleFailure(currentTime)
-            if (failureTimestamps.size >= failureThreshold) {
-                circuitOpenedTime = currentTime
-                throw IOException("Circuit breaker is open due to consecutive failures in the last $timeWindowMillis milliseconds. Last response code: ${response.code}", null)
-            }
-        } else {
-            clearOldFailures(currentTime)
-            resetCircuitBreakerIfNecessary()
-        }
+        Mockito.`when`(mockSharedPreferences.edit()).thenReturn(mockEditor)
+        Mockito.`when`(mockEditor.putString(Mockito.anyString(), Mockito.anyString())).thenReturn(mockEditor)
+        Mockito.`when`(mockEditor.putInt(Mockito.anyString(), Mockito.anyInt())).thenReturn(mockEditor)
+        Mockito.`when`(mockEditor.putBoolean(Mockito.anyString(), Mockito.anyBoolean())).thenReturn(mockEditor)
+        Mockito.`when`(mockEditor.putFloat(Mockito.anyString(), Mockito.anyFloat())).thenReturn(mockEditor)
+        Mockito.`when`(mockEditor.putLong(Mockito.anyString(), Mockito.anyLong())).thenReturn(mockEditor)
+        Mockito.`when`(mockEditor.putStringSet(Mockito.anyString(), Mockito.anySet())).thenReturn(mockEditor)
+        Mockito.`when`(mockEditor.remove(Mockito.anyString())).thenReturn(mockEditor)
 
-        return response
+        sharedPrefStorageManager = SharedPrefStorageManager(context)
     }
 
-    private fun isCircuitOpen(currentTime: Long): Boolean {
-        return circuitOpenedTime > 0 && (currentTime - circuitOpenedTime < openDurationMillis)
+    @Test
+    fun testPutAndGetStringValue() {
+        val key = "test_key"
+        val value = "test_value"
+
+        sharedPrefStorageManager.putValue(key, value)
+        Mockito.`when`(mockSharedPreferences.getString(key, "")).thenReturn(value)
+
+        val result = sharedPrefStorageManager.getValue(key, "", String::class.java)
+        assertEquals(value, result)
     }
 
-    private fun handleFailure(currentTime: Long) {
-        failureTimestamps.add(currentTime)
-        clearOldFailures(currentTime)
+    @Test
+    fun testPutAndGetIntValue() {
+        val key = "test_key"
+        val value = 123
+
+        sharedPrefStorageManager.putValue(key, value)
+        Mockito.`when`(mockSharedPreferences.getInt(key, 0)).thenReturn(value)
+
+        val result = sharedPrefStorageManager.getValue(key, 0, Int::class.java)
+        assertEquals(value, result)
     }
 
-    private fun clearOldFailures(currentTime: Long) {
-        // Zaman dilimini aşmış hataları temizle
-        while (failureTimestamps.isNotEmpty() && currentTime - failureTimestamps.peek() > timeWindowMillis) {
-            failureTimestamps.poll()
-        }
-    }
+    @Test
+    fun testRemoveValue() {
+        val key = "test_key"
+        Mockito.`when`(mockSharedPreferences.contains(key)).thenReturn(true)
 
-    private fun resetCircuitBreakerIfNecessary() {
-        if (failureTimestamps.isEmpty()) {
-            circuitOpenedTime = 0L
-        }
+        sharedPrefStorageManager.removeValue(key)
+        Mockito.verify(mockEditor).remove(key)
+        Mockito.verify(mockEditor).apply()
     }
 }
