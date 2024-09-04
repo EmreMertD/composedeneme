@@ -1,71 +1,80 @@
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
-import org.mockito.Mock
-import org.mockito.Mockito
-import org.mockito.MockitoAnnotations
+import org.junit.runner.RunWith
 
-class SharedPrefStorageManagerTest {
+@RunWith(AndroidJUnit4::class)
+class SharedPrefStorageManagerInstrumentationTest {
 
     private lateinit var sharedPrefStorageManager: SharedPrefStorageManager
-
-    @Mock
-    private lateinit var mockSharedPreferences: SharedPreferences
-
-    @Mock
-    private lateinit var mockEditor: SharedPreferences.Editor
+    private lateinit var sharedPreferences: SharedPreferences
+    private val testKey = "test_key"
 
     @Before
     fun setUp() {
-        MockitoAnnotations.openMocks(this)
         val context = ApplicationProvider.getApplicationContext<Context>()
-
-        Mockito.`when`(mockSharedPreferences.edit()).thenReturn(mockEditor)
-        Mockito.`when`(mockEditor.putString(Mockito.anyString(), Mockito.anyString())).thenReturn(mockEditor)
-        Mockito.`when`(mockEditor.putInt(Mockito.anyString(), Mockito.anyInt())).thenReturn(mockEditor)
-        Mockito.`when`(mockEditor.putBoolean(Mockito.anyString(), Mockito.anyBoolean())).thenReturn(mockEditor)
-        Mockito.`when`(mockEditor.putFloat(Mockito.anyString(), Mockito.anyFloat())).thenReturn(mockEditor)
-        Mockito.`when`(mockEditor.putLong(Mockito.anyString(), Mockito.anyLong())).thenReturn(mockEditor)
-        Mockito.`when`(mockEditor.putStringSet(Mockito.anyString(), Mockito.anySet())).thenReturn(mockEditor)
-        Mockito.`when`(mockEditor.remove(Mockito.anyString())).thenReturn(mockEditor)
-
         sharedPrefStorageManager = SharedPrefStorageManager(context)
+        sharedPreferences = context.getSharedPreferences(CommonParameters.PREF_NAME, Context.MODE_PRIVATE)
+
+        // Teste temiz bir başlangıç yapmak için SharedPreferences'i temizliyoruz.
+        sharedPreferences.edit().clear().commit()
+    }
+
+    @After
+    fun tearDown() {
+        // Her testten sonra temizleme işlemi
+        sharedPreferences.edit().clear().commit()
     }
 
     @Test
     fun testPutAndGetStringValue() {
-        val key = "test_key"
         val value = "test_value"
 
-        sharedPrefStorageManager.putValue(key, value)
-        Mockito.`when`(mockSharedPreferences.getString(key, "")).thenReturn(value)
+        sharedPrefStorageManager.putValue(testKey, value)
+        val result = sharedPrefStorageManager.getValue(testKey, "", String::class.java)
 
-        val result = sharedPrefStorageManager.getValue(key, "", String::class.java)
         assertEquals(value, result)
     }
 
     @Test
     fun testPutAndGetIntValue() {
-        val key = "test_key"
         val value = 123
 
-        sharedPrefStorageManager.putValue(key, value)
-        Mockito.`when`(mockSharedPreferences.getInt(key, 0)).thenReturn(value)
+        sharedPrefStorageManager.putValue(testKey, value)
+        val result = sharedPrefStorageManager.getValue(testKey, 0, Int::class.java)
 
-        val result = sharedPrefStorageManager.getValue(key, 0, Int::class.java)
+        assertEquals(value, result)
+    }
+
+    @Test
+    fun testPutAndGetBooleanValue() {
+        val value = true
+
+        sharedPrefStorageManager.putValue(testKey, value)
+        val result = sharedPrefStorageManager.getValue(testKey, false, Boolean::class.java)
+
         assertEquals(value, result)
     }
 
     @Test
     fun testRemoveValue() {
-        val key = "test_key"
-        Mockito.`when`(mockSharedPreferences.contains(key)).thenReturn(true)
+        val value = "to_be_removed"
 
-        sharedPrefStorageManager.removeValue(key)
-        Mockito.verify(mockEditor).remove(key)
-        Mockito.verify(mockEditor).apply()
+        sharedPrefStorageManager.putValue(testKey, value)
+        sharedPrefStorageManager.removeValue(testKey)
+        val result = sharedPrefStorageManager.getValue(testKey, null, String::class.java)
+
+        assertEquals(null, result)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testPutInvalidType() {
+        val invalidValue = listOf(1, 2, 3) // Geçersiz bir değer tipi
+        sharedPrefStorageManager.putValue(testKey, invalidValue)
     }
 }
