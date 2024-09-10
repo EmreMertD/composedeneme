@@ -1,111 +1,91 @@
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import java.util.List;
+import java.util.ArrayList;
 
-import android.content.Context
-import android.content.SharedPreferences
-import androidx.test.core.app.ApplicationProvider
-import androidx.test.ext.junit.runners.AndroidJUnit4
-import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Before
-import org.junit.Test
-import org.junit.runner.RunWith
+class ArkParameterDistributionServiceTest {
 
-@RunWith(AndroidJUnit4::class)
-class SharedPrefStorageManagerInstrumentationTest {
+    private ArkParameterDistributionService service;
 
-    private lateinit var sharedPrefStorageManager: SharedPrefStorageManager
-    private lateinit var sharedPreferences: SharedPreferences
-    private val testKey = "test_key"
-
-    @Before
-    fun setUp() {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        sharedPrefStorageManager = SharedPrefStorageManager(context)
-        sharedPreferences = context.getSharedPreferences(CommonParameters.PREF_NAME, Context.MODE_PRIVATE)
-
-        // Teste temiz bir başlangıç yapmak için SharedPreferences'i temizliyoruz.
-        sharedPreferences.edit().clear().commit()
-    }
-
-    @After
-    fun tearDown() {
-        // Her testten sonra temizleme işlemi
-        sharedPreferences.edit().clear().commit()
+    @BeforeEach
+    void setUp() {
+        service = new ArkParameterDistributionService();
     }
 
     @Test
-    fun testPutAndGetStringValue() {
-        val value = "test_value"
+    void testIsFeatureOpen_WithBlackListPolicy() throws ActionException {
+        List<IArkParameterPolicy> policies = new ArrayList<>();
+        ArkParameterPolicyType blackListPolicyType = ArkParameterPolicyType.BLACK_LIST;
+        policies.add(new ArkParameterPolicy(blackListPolicyType));
 
-        sharedPrefStorageManager.putValue(testKey, value)
-        val result = sharedPrefStorageManager.getValue(testKey, "", String::class.java)
+        ArkParameterDistributionInput input = new ArkParameterDistributionInput();
+        boolean result = service.isFeatureOpen(policies, input);
 
-        assertEquals(value, result)
+        assertFalse(result, "BlackList policy should return false");
     }
 
     @Test
-    fun testPutAndGetIntValue() {
-        val value = 123
+    void testIsFeatureOpen_WithDistributionPolicy() throws ActionException {
+        List<IArkParameterPolicy> policies = new ArrayList<>();
+        ArkParameterPolicyType distributionPolicyType = ArkParameterPolicyType.DISTRIBUTION;
+        policies.add(new ArkParameterPolicy(distributionPolicyType));
 
-        sharedPrefStorageManager.putValue(testKey, value)
-        val result = sharedPrefStorageManager.getValue(testKey, 0, Int::class.java)
+        ArkParameterDistributionInput input = new ArkParameterDistributionInput();
+        boolean result = service.isFeatureOpen(policies, input);
 
-        assertEquals(value, result)
+        assertTrue(result, "Distribution policy should return true");
     }
 
     @Test
-    fun testPutAndGetBooleanValue() {
-        val value = true
+    void testIsFeatureOpen_EmptyPolicies() throws ActionException {
+        List<IArkParameterPolicy> policies = new ArrayList<>();
+        ArkParameterDistributionInput input = new ArkParameterDistributionInput();
 
-        sharedPrefStorageManager.putValue(testKey, value)
-        val result = sharedPrefStorageManager.getValue(testKey, false, Boolean::class.java)
-
-        assertEquals(value, result)
-    }
-
-    @Test
-    fun testPutAndGetLongValue() {
-        val value = 123456789L
-
-        sharedPrefStorageManager.putValue(testKey, value)
-        val result = sharedPrefStorageManager.getValue(testKey, 0L, Long::class.java)
-
-        assertEquals(value, result)
-    }
-
-    @Test
-    fun testPutAndGetFloatValue() {
-        val value = 123.45f
-
-        sharedPrefStorageManager.putValue(testKey, value)
-        val result = sharedPrefStorageManager.getValue(testKey, 0.0f, Float::class.java)
-
-        assertEquals(value, result)
-    }
-
-    @Test
-    fun testPutAndGetStringSetValue() {
-        val value = setOf("item1", "item2", "item3")
-
-        sharedPrefStorageManager.putValue(testKey, value)
-        val result = sharedPrefStorageManager.getValue(testKey, emptySet<String>(), Set::class.java)
-
-        assertEquals(value, result)
-    }
-
-    @Test
-    fun testRemoveValue() {
-        val value = "to_be_removed"
-
-        sharedPrefStorageManager.putValue(testKey, value)
-        sharedPrefStorageManager.removeValue(testKey)
-        val result = sharedPrefStorageManager.getValue(testKey, null, String::class.java)
-
-        assertEquals(null, result)
-    }
-
-    @Test(expected = IllegalArgumentException::class)
-    fun testPutInvalidType() {
-        val invalidValue = listOf(1, 2, 3) // Geçersiz bir değer tipi
-        sharedPrefStorageManager.putValue(testKey, invalidValue)
+        boolean result = service.isFeatureOpen(policies, input);
+        assertFalse(result, "Empty policy list should return false");
     }
 }
+
+
+
+
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+
+class ArkParameterOperatingSystemTypeTest {
+
+    @Test
+    void testGetValueForAndroid() {
+        ArkParameterOperatingSystemType osType = ArkParameterOperatingSystemType.AND;
+        assertEquals("ANDROID", osType.getValue(), "Expected ANDROID for AND enum");
+    }
+
+    @Test
+    void testGetValueForIOS() {
+        ArkParameterOperatingSystemType osType = ArkParameterOperatingSystemType.IOS;
+        assertEquals("IOS", osType.getValue(), "Expected IOS for IOS enum");
+    }
+}
+
+
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
+
+class ArkParameterPolicyTypeTest {
+
+    @Test
+    void testGetTypeForBlackList() {
+        ArkParameterPolicyType policyType = ArkParameterPolicyType.BLACK_LIST;
+        assertEquals("B", policyType.getType(), "Expected 'B' for BLACK_LIST");
+    }
+
+    @Test
+    void testGetTypeForDistribution() {
+        ArkParameterPolicyType policyType = ArkParameterPolicyType.DISTRIBUTION;
+        assertEquals("D", policyType.getType(), "Expected 'D' for DISTRIBUTION");
+    }
+}
+
+
+
