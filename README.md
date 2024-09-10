@@ -34,10 +34,10 @@ public class CustomerNumberBlackListPolicyTest {
     }
 
     @Test
-    public void testCheckCustomerNumberInBlackList_Success() throws ActionException {
+    public void testCheckCustomerNumberInBlackList_CustomerNotInBlackList() throws ActionException {
         // Mock input ayarları
         when(mockInput.getCustomerNumberBlackListParameter()).thenReturn("blackListParam");
-        when(mockInput.getCustomerNum()).thenReturn(BigDecimal.ONE);
+        when(mockInput.getCustomerNum()).thenReturn(BigDecimal.TEN);  // Kara listede olmayan müşteri numarası
         when(mockInput.getGroupName()).thenReturn("groupName");
         when(mockInput.getAttributeName()).thenReturn("attributeName");
         when(mockInput.getCache()).thenReturn("cache");
@@ -46,7 +46,7 @@ public class CustomerNumberBlackListPolicyTest {
         // Mock DynamicService ayarları
         when(mockDynamicService.getArkParameterListWithCodeName(any())).thenReturn(mockOutput);
 
-        // Mock edilen ArkParameterServiceOutput öğesini listeye ekliyoruz
+        // Mock edilen ArkParameterServiceOutput öğesini listeye ekliyoruz (listede olmayan müşteri)
         List<ArkParameterServiceOutput> mockItems = Arrays.asList(mockServiceOutput);
 
         // getItems() metodu mockItems listesini döndürecek şekilde ayarlanıyor
@@ -55,7 +55,7 @@ public class CustomerNumberBlackListPolicyTest {
         // Test edilen metodu çağırıyoruz
         boolean result = customerNumberBlackListPolicy.checkCustomerNumberInBlackList(mockInput);
 
-        // Beklenen sonucu doğruluyoruz
-        assertTrue(result);
+        // Beklenen sonucu doğruluyoruz (müşteri kara listede olmadığı için false)
+        assertFalse(result);
     }
 }
