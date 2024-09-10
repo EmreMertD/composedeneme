@@ -8,13 +8,12 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
 import java.util.Arrays;
 import java.util.List;
-import java.math.BigDecimal;
 
 @RunWith(MockitoJUnitRunner.class)
-public class CustomerNumberStagingPolicyTest {
+public class DeviceInfoBlackListPolicyTest {
 
     @InjectMocks
-    private CustomerNumberStagingPolicy customerNumberStagingPolicy;
+    private DeviceInfoBlackListPolicy deviceInfoBlackListPolicy;
 
     @Mock
     private IReadArkParameterDynamicService mockDynamicService;
@@ -30,14 +29,14 @@ public class CustomerNumberStagingPolicyTest {
 
     @Before
     public void setUp() {
-        customerNumberStagingPolicy = new CustomerNumberStagingPolicy(mockDynamicService);
+        deviceInfoBlackListPolicy = new DeviceInfoBlackListPolicy(mockDynamicService);
     }
 
     @Test
-    public void testCheckCustomerNumberInStaging_CustomerNotInStagingList() throws ActionException {
+    public void testCheckDeviceInfoInBlackList_DeviceNotInBlackList() throws ActionException {
         // Mock input ayarları
-        when(mockInput.getCustomerDistributionControlParameter()).thenReturn("stagingControlParam");
-        when(mockInput.getCustomerNum()).thenReturn(BigDecimal.TEN);  // Staging listede olmayan müşteri numarası
+        when(mockInput.getDeviceInfoBlackListParameter()).thenReturn("deviceBlackListParam");
+        when(mockInput.getDeviceInfo()).thenReturn("Device_456");  // Kara listede olmayan cihaz bilgisi
         when(mockInput.getGroupName()).thenReturn("groupName");
         when(mockInput.getAttributeName()).thenReturn("attributeName");
         when(mockInput.getCache()).thenReturn("cache");
@@ -46,19 +45,19 @@ public class CustomerNumberStagingPolicyTest {
         // Mock DynamicService ayarları
         when(mockDynamicService.getArkParameterListWithCodeName(any())).thenReturn(mockOutput);
 
-        // Staging listesine ekliyoruz fakat müşteri numarası staging listede değil
+        // Kara listeye ekliyoruz fakat cihaz kara listede değil
         List<ArkParameterServiceOutput> mockItems = Arrays.asList(mockServiceOutput);
 
         // getItems() metodu mockItems listesini döndürecek şekilde ayarlanıyor
         when(mockOutput.getItems()).thenReturn(mockItems);
 
-        // Staging listede farklı bir müşteri numarası varmış gibi davranıyoruz
-        when(mockServiceOutput.getPrmValue()).thenReturn("123");  // Staging listede olan başka bir müşteri numarası
+        // Kara listede farklı bir cihaz varmış gibi davranıyoruz
+        when(mockServiceOutput.getPrmValue()).thenReturn("Device_123");  // Kara listede olan başka bir cihaz
 
         // Test edilen metodu çağırıyoruz
-        boolean result = customerNumberStagingPolicy.validate(mockInput);
+        boolean result = deviceInfoBlackListPolicy.validate(mockInput);
 
-        // Beklenen sonucu doğruluyoruz (müşteri staging listede olmadığı için false)
+        // Beklenen sonucu doğruluyoruz (cihaz kara listede olmadığı için false)
         assertFalse(result);
     }
 }
