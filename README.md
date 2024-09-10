@@ -11,10 +11,10 @@ import java.util.List;
 import java.math.BigDecimal;
 
 @RunWith(MockitoJUnitRunner.class)
-public class CustomerNumberBlackListPolicyTest {
+public class CustomerNumberStagingPolicyTest {
 
     @InjectMocks
-    private CustomerNumberBlackListPolicy customerNumberBlackListPolicy;
+    private CustomerNumberStagingPolicy customerNumberStagingPolicy;
 
     @Mock
     private IReadArkParameterDynamicService mockDynamicService;
@@ -30,14 +30,14 @@ public class CustomerNumberBlackListPolicyTest {
 
     @Before
     public void setUp() {
-        customerNumberBlackListPolicy = new CustomerNumberBlackListPolicy(mockDynamicService);
+        customerNumberStagingPolicy = new CustomerNumberStagingPolicy(mockDynamicService);
     }
 
     @Test
-    public void testCheckCustomerNumberInBlackList_CustomerNotInBlackList() throws ActionException {
+    public void testCheckCustomerNumberInStaging_CustomerNotInStagingList() throws ActionException {
         // Mock input ayarları
-        when(mockInput.getCustomerNumberBlackListParameter()).thenReturn("blackListParam");
-        when(mockInput.getCustomerNum()).thenReturn(BigDecimal.TEN);  // Kara listede olmayan müşteri numarası
+        when(mockInput.getCustomerDistributionControlParameter()).thenReturn("stagingControlParam");
+        when(mockInput.getCustomerNum()).thenReturn(BigDecimal.TEN);  // Staging listede olmayan müşteri numarası
         when(mockInput.getGroupName()).thenReturn("groupName");
         when(mockInput.getAttributeName()).thenReturn("attributeName");
         when(mockInput.getCache()).thenReturn("cache");
@@ -46,16 +46,19 @@ public class CustomerNumberBlackListPolicyTest {
         // Mock DynamicService ayarları
         when(mockDynamicService.getArkParameterListWithCodeName(any())).thenReturn(mockOutput);
 
-        // Mock edilen ArkParameterServiceOutput öğesini listeye ekliyoruz (listede olmayan müşteri)
+        // Staging listesine ekliyoruz fakat müşteri numarası staging listede değil
         List<ArkParameterServiceOutput> mockItems = Arrays.asList(mockServiceOutput);
 
         // getItems() metodu mockItems listesini döndürecek şekilde ayarlanıyor
         when(mockOutput.getItems()).thenReturn(mockItems);
 
-        // Test edilen metodu çağırıyoruz
-        boolean result = customerNumberBlackListPolicy.checkCustomerNumberInBlackList(mockInput);
+        // Staging listede farklı bir müşteri numarası varmış gibi davranıyoruz
+        when(mockServiceOutput.getPrmValue()).thenReturn("123");  // Staging listede olan başka bir müşteri numarası
 
-        // Beklenen sonucu doğruluyoruz (müşteri kara listede olmadığı için false)
+        // Test edilen metodu çağırıyoruz
+        boolean result = customerNumberStagingPolicy.validate(mockInput);
+
+        // Beklenen sonucu doğruluyoruz (müşteri staging listede olmadığı için false)
         assertFalse(result);
     }
 }
