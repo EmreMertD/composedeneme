@@ -6,13 +6,13 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-import java.math.BigDecimal;
+import java.util.Optional;
 
 @RunWith(MockitoJUnitRunner.class)
-public class CustomerNumberBlackListPolicyTest {
+public class OperatingSystemStagingPolicyTest {
 
     @InjectMocks
-    private CustomerNumberBlackListPolicy customerNumberBlackListPolicy;
+    private OperatingSystemStagingPolicy operatingSystemStagingPolicy;
 
     @Mock
     private IReadArkParameterDynamicService mockDynamicService;
@@ -22,35 +22,55 @@ public class CustomerNumberBlackListPolicyTest {
 
     @Before
     public void setUp() {
-        customerNumberBlackListPolicy = new CustomerNumberBlackListPolicy(mockDynamicService);
+        operatingSystemStagingPolicy = new OperatingSystemStagingPolicy(mockDynamicService);
     }
 
     @Test
     public void testGetPolicyType() {
-        assertEquals(ArkParameterPolicyType.BLACK_LIST, customerNumberBlackListPolicy.getPolicyType());
+        assertEquals(ArkParameterPolicyType.DISTRIBUTION, operatingSystemStagingPolicy.getPolicyType());
     }
 
     @Test
-    public void testValidate_CustomerNumberInBlackList() throws ActionException {
-        when(mockInput.getCustomerNumberBlackListParameter()).thenReturn("SomeParam");
-        when(mockInput.getCustomerNum()).thenReturn(BigDecimal.ONE);
-        
-        ArkParameterListServiceOutput mockOutput = mock(ArkParameterListServiceOutput.class);
-        when(mockDynamicService.getArkParameterListWithCodeName(any())).thenReturn(mockOutput);
-        when(mockOutput.getItems()).thenReturn(List.of(mock(ArkParameterListServiceItem.class)));
+    public void testValidate_AndroidOperatingSystem() throws ActionException {
+        when(mockInput.getOperatingSystem()).thenReturn(ArkParameterOperatingSystemType.AND);
+        when(mockInput.getAndroidFeatureControlParameter()).thenReturn("AndroidParam");
 
-        boolean result = customerNumberBlackListPolicy.validate(mockInput);
-        
+        ArkParameterDynamicServiceInput dynamicInput = mock(ArkParameterDynamicServiceInput.class);
+        when(mockDynamicService.getArkParameterListWithCodeName(any())).thenReturn(Optional.of(mock(ArkParameterServiceOutput.class)));
+
+        boolean result = operatingSystemStagingPolicy.validate(mockInput);
+
+        assertTrue(result);
+        verify(mockDynamicService).getArkParameterListWithCodeName(any());
+    }
+
+    @Test
+    public void testValidate_IosOperatingSystem() throws ActionException {
+        when(mockInput.getOperatingSystem()).thenReturn(ArkParameterOperatingSystemType.IOS);
+        when(mockInput.getIosFeatureControlParameter()).thenReturn("IosParam");
+
+        ArkParameterDynamicServiceInput dynamicInput = mock(ArkParameterDynamicServiceInput.class);
+        when(mockDynamicService.getArkParameterListWithCodeName(any())).thenReturn(Optional.of(mock(ArkParameterServiceOutput.class)));
+
+        boolean result = operatingSystemStagingPolicy.validate(mockInput);
+
         assertTrue(result);
         verify(mockDynamicService).getArkParameterListWithCodeName(any());
     }
 
     @Test(expected = ActionException.class)
     public void testValidate_ThrowsActionExceptionOnInvalidInput() throws ActionException {
-        when(mockInput.getCustomerNumberBlackListParameter()).thenReturn(null);
-        customerNumberBlackListPolicy.validate(mockInput);
+        when(mockInput.getOperatingSystem()).thenReturn(ArkParameterOperatingSystemType.AND);
+        when(mockInput.getAndroidFeatureControlParameter()).thenReturn(null);
+        
+        operatingSystemStagingPolicy.validate(mockInput);
     }
 }
+
+
+
+
+
 
 
 
@@ -64,14 +84,13 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-import java.math.BigDecimal;
 import java.util.List;
 
 @RunWith(MockitoJUnitRunner.class)
-public class CustomerNumberStagingPolicyTest {
+public class DeviceInfoBlackListPolicyTest {
 
     @InjectMocks
-    private CustomerNumberStagingPolicy customerNumberStagingPolicy;
+    private DeviceInfoBlackListPolicy deviceInfoBlackListPolicy;
 
     @Mock
     private IReadArkParameterDynamicService mockDynamicService;
@@ -81,24 +100,24 @@ public class CustomerNumberStagingPolicyTest {
 
     @Before
     public void setUp() {
-        customerNumberStagingPolicy = new CustomerNumberStagingPolicy(mockDynamicService);
+        deviceInfoBlackListPolicy = new DeviceInfoBlackListPolicy(mockDynamicService);
     }
 
     @Test
     public void testGetPolicyType() {
-        assertEquals(ArkParameterPolicyType.DISTRIBUTION, customerNumberStagingPolicy.getPolicyType());
+        assertEquals(ArkParameterPolicyType.BLACK_LIST, deviceInfoBlackListPolicy.getPolicyType());
     }
 
     @Test
-    public void testValidate_CustomerNumberInStagingDistribution() throws ActionException {
-        when(mockInput.getCustomerDistributionControlParameter()).thenReturn("SomeParam");
-        when(mockInput.getCustomerNum()).thenReturn(BigDecimal.ONE);
+    public void testValidate_DeviceInBlackList() throws ActionException {
+        when(mockInput.getDeviceInfoBlackListParameter()).thenReturn("DeviceParam");
+        when(mockInput.getDeviceInfo()).thenReturn("Device123");
 
         ArkParameterListServiceOutput mockOutput = mock(ArkParameterListServiceOutput.class);
         when(mockDynamicService.getArkParameterListWithCodeName(any())).thenReturn(mockOutput);
         when(mockOutput.getItems()).thenReturn(List.of(mock(ArkParameterListServiceItem.class)));
 
-        boolean result = customerNumberStagingPolicy.validate(mockInput);
+        boolean result = deviceInfoBlackListPolicy.validate(mockInput);
 
         assertTrue(result);
         verify(mockDynamicService).getArkParameterListWithCodeName(any());
@@ -106,7 +125,12 @@ public class CustomerNumberStagingPolicyTest {
 
     @Test(expected = ActionException.class)
     public void testValidate_ThrowsActionExceptionOnInvalidInput() throws ActionException {
-        when(mockInput.getCustomerDistributionControlParameter()).thenReturn(null);
-        customerNumberStagingPolicy.validate(mockInput);
+        when(mockInput.getDeviceInfoBlackListParameter()).thenReturn(null);
+        
+        deviceInfoBlackListPolicy.validate(mockInput);
     }
 }
+
+
+
+
