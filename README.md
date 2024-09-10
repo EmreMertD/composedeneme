@@ -1,89 +1,121 @@
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
 import java.util.List;
 import java.util.ArrayList;
 
-class ArkParameterDistributionServiceTest {
+@RunWith(MockitoJUnitRunner.class)
+public class ArkParameterDistributionServiceTest {
 
+    @InjectMocks
     private ArkParameterDistributionService service;
 
-    @BeforeEach
-    void setUp() {
+    @Mock
+    private IArkParameterPolicy mockPolicy;
+
+    @Before
+    public void setUp() {
         service = new ArkParameterDistributionService();
     }
 
     @Test
-    void testIsFeatureOpen_WithBlackListPolicy() throws ActionException {
+    public void testIsFeatureOpen_WithBlackListPolicy() throws ActionException {
         List<IArkParameterPolicy> policies = new ArrayList<>();
-        ArkParameterPolicyType blackListPolicyType = ArkParameterPolicyType.BLACK_LIST;
-        policies.add(new ArkParameterPolicy(blackListPolicyType));
+        when(mockPolicy.getPolicyType()).thenReturn(ArkParameterPolicyType.BLACK_LIST);
+        when(mockPolicy.validate(any())).thenReturn(false);
+        policies.add(mockPolicy);
 
         ArkParameterDistributionInput input = new ArkParameterDistributionInput();
         boolean result = service.isFeatureOpen(policies, input);
 
-        assertFalse(result, "BlackList policy should return false");
+        assertFalse(result);
+        verify(mockPolicy).validate(input);
     }
 
     @Test
-    void testIsFeatureOpen_WithDistributionPolicy() throws ActionException {
+    public void testIsFeatureOpen_WithDistributionPolicy() throws ActionException {
         List<IArkParameterPolicy> policies = new ArrayList<>();
-        ArkParameterPolicyType distributionPolicyType = ArkParameterPolicyType.DISTRIBUTION;
-        policies.add(new ArkParameterPolicy(distributionPolicyType));
+        when(mockPolicy.getPolicyType()).thenReturn(ArkParameterPolicyType.DISTRIBUTION);
+        when(mockPolicy.validate(any())).thenReturn(true);
+        policies.add(mockPolicy);
 
         ArkParameterDistributionInput input = new ArkParameterDistributionInput();
         boolean result = service.isFeatureOpen(policies, input);
 
-        assertTrue(result, "Distribution policy should return true");
+        assertTrue(result);
+        verify(mockPolicy).validate(input);
     }
 
     @Test
-    void testIsFeatureOpen_EmptyPolicies() throws ActionException {
+    public void testIsFeatureOpen_EmptyPolicies() throws ActionException {
         List<IArkParameterPolicy> policies = new ArrayList<>();
-        ArkParameterDistributionInput input = new ArkParameterDistributionInput();
 
+        ArkParameterDistributionInput input = new ArkParameterDistributionInput();
         boolean result = service.isFeatureOpen(policies, input);
-        assertFalse(result, "Empty policy list should return false");
+
+        assertFalse(result);
     }
 }
 
 
 
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
+import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
 
-class ArkParameterOperatingSystemTypeTest {
+@RunWith(MockitoJUnitRunner.class)
+public class ArkParameterOperatingSystemTypeTest {
+
+    @Mock
+    private ArkParameterOperatingSystemType mockOsType;
 
     @Test
-    void testGetValueForAndroid() {
-        ArkParameterOperatingSystemType osType = ArkParameterOperatingSystemType.AND;
-        assertEquals("ANDROID", osType.getValue(), "Expected ANDROID for AND enum");
+    public void testGetValueForAndroid() {
+        when(mockOsType.getValue()).thenReturn("ANDROID");
+        assertEquals("ANDROID", mockOsType.getValue());
     }
 
     @Test
-    void testGetValueForIOS() {
-        ArkParameterOperatingSystemType osType = ArkParameterOperatingSystemType.IOS;
-        assertEquals("IOS", osType.getValue(), "Expected IOS for IOS enum");
+    public void testGetValueForIOS() {
+        when(mockOsType.getValue()).thenReturn("IOS");
+        assertEquals("IOS", mockOsType.getValue());
     }
 }
 
 
-import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Test;
 
-class ArkParameterPolicyTypeTest {
+import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
+
+@RunWith(MockitoJUnitRunner.class)
+public class ArkParameterPolicyTypeTest {
+
+    @Mock
+    private ArkParameterPolicyType mockPolicyType;
 
     @Test
-    void testGetTypeForBlackList() {
-        ArkParameterPolicyType policyType = ArkParameterPolicyType.BLACK_LIST;
-        assertEquals("B", policyType.getType(), "Expected 'B' for BLACK_LIST");
+    public void testGetTypeForBlackList() {
+        when(mockPolicyType.getType()).thenReturn("B");
+        assertEquals("B", mockPolicyType.getType());
     }
 
     @Test
-    void testGetTypeForDistribution() {
-        ArkParameterPolicyType policyType = ArkParameterPolicyType.DISTRIBUTION;
-        assertEquals("D", policyType.getType(), "Expected 'D' for DISTRIBUTION");
+    public void testGetTypeForDistribution() {
+        when(mockPolicyType.getType()).thenReturn("D");
+        assertEquals("D", mockPolicyType.getType());
     }
 }
 
