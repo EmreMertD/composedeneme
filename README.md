@@ -6,118 +6,107 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-import java.util.List;
-import java.util.ArrayList;
+import java.math.BigDecimal;
 
 @RunWith(MockitoJUnitRunner.class)
-public class ArkParameterDistributionServiceTest {
+public class CustomerNumberBlackListPolicyTest {
 
     @InjectMocks
-    private ArkParameterDistributionService service;
+    private CustomerNumberBlackListPolicy customerNumberBlackListPolicy;
 
     @Mock
-    private IArkParameterPolicy mockPolicy;
+    private IReadArkParameterDynamicService mockDynamicService;
+
+    @Mock
+    private ArkParameterDistributionInput mockInput;
 
     @Before
     public void setUp() {
-        service = new ArkParameterDistributionService();
+        customerNumberBlackListPolicy = new CustomerNumberBlackListPolicy(mockDynamicService);
     }
 
     @Test
-    public void testIsFeatureOpen_WithBlackListPolicy() throws ActionException {
-        List<IArkParameterPolicy> policies = new ArrayList<>();
-        when(mockPolicy.getPolicyType()).thenReturn(ArkParameterPolicyType.BLACK_LIST);
-        when(mockPolicy.validate(any())).thenReturn(false);
-        policies.add(mockPolicy);
-
-        ArkParameterDistributionInput input = new ArkParameterDistributionInput();
-        boolean result = service.isFeatureOpen(policies, input);
-
-        assertFalse(result);
-        verify(mockPolicy).validate(input);
+    public void testGetPolicyType() {
+        assertEquals(ArkParameterPolicyType.BLACK_LIST, customerNumberBlackListPolicy.getPolicyType());
     }
 
     @Test
-    public void testIsFeatureOpen_WithDistributionPolicy() throws ActionException {
-        List<IArkParameterPolicy> policies = new ArrayList<>();
-        when(mockPolicy.getPolicyType()).thenReturn(ArkParameterPolicyType.DISTRIBUTION);
-        when(mockPolicy.validate(any())).thenReturn(true);
-        policies.add(mockPolicy);
+    public void testValidate_CustomerNumberInBlackList() throws ActionException {
+        when(mockInput.getCustomerNumberBlackListParameter()).thenReturn("SomeParam");
+        when(mockInput.getCustomerNum()).thenReturn(BigDecimal.ONE);
+        
+        ArkParameterListServiceOutput mockOutput = mock(ArkParameterListServiceOutput.class);
+        when(mockDynamicService.getArkParameterListWithCodeName(any())).thenReturn(mockOutput);
+        when(mockOutput.getItems()).thenReturn(List.of(mock(ArkParameterListServiceItem.class)));
 
-        ArkParameterDistributionInput input = new ArkParameterDistributionInput();
-        boolean result = service.isFeatureOpen(policies, input);
+        boolean result = customerNumberBlackListPolicy.validate(mockInput);
+        
+        assertTrue(result);
+        verify(mockDynamicService).getArkParameterListWithCodeName(any());
+    }
+
+    @Test(expected = ActionException.class)
+    public void testValidate_ThrowsActionExceptionOnInvalidInput() throws ActionException {
+        when(mockInput.getCustomerNumberBlackListParameter()).thenReturn(null);
+        customerNumberBlackListPolicy.validate(mockInput);
+    }
+}
+
+
+
+
+
+import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
+import java.math.BigDecimal;
+import java.util.List;
+
+@RunWith(MockitoJUnitRunner.class)
+public class CustomerNumberStagingPolicyTest {
+
+    @InjectMocks
+    private CustomerNumberStagingPolicy customerNumberStagingPolicy;
+
+    @Mock
+    private IReadArkParameterDynamicService mockDynamicService;
+
+    @Mock
+    private ArkParameterDistributionInput mockInput;
+
+    @Before
+    public void setUp() {
+        customerNumberStagingPolicy = new CustomerNumberStagingPolicy(mockDynamicService);
+    }
+
+    @Test
+    public void testGetPolicyType() {
+        assertEquals(ArkParameterPolicyType.DISTRIBUTION, customerNumberStagingPolicy.getPolicyType());
+    }
+
+    @Test
+    public void testValidate_CustomerNumberInStagingDistribution() throws ActionException {
+        when(mockInput.getCustomerDistributionControlParameter()).thenReturn("SomeParam");
+        when(mockInput.getCustomerNum()).thenReturn(BigDecimal.ONE);
+
+        ArkParameterListServiceOutput mockOutput = mock(ArkParameterListServiceOutput.class);
+        when(mockDynamicService.getArkParameterListWithCodeName(any())).thenReturn(mockOutput);
+        when(mockOutput.getItems()).thenReturn(List.of(mock(ArkParameterListServiceItem.class)));
+
+        boolean result = customerNumberStagingPolicy.validate(mockInput);
 
         assertTrue(result);
-        verify(mockPolicy).validate(input);
+        verify(mockDynamicService).getArkParameterListWithCodeName(any());
     }
 
-    @Test
-    public void testIsFeatureOpen_EmptyPolicies() throws ActionException {
-        List<IArkParameterPolicy> policies = new ArrayList<>();
-
-        ArkParameterDistributionInput input = new ArkParameterDistributionInput();
-        boolean result = service.isFeatureOpen(policies, input);
-
-        assertFalse(result);
+    @Test(expected = ActionException.class)
+    public void testValidate_ThrowsActionExceptionOnInvalidInput() throws ActionException {
+        when(mockInput.getCustomerDistributionControlParameter()).thenReturn(null);
+        customerNumberStagingPolicy.validate(mockInput);
     }
 }
-
-
-
-
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
-
-@RunWith(MockitoJUnitRunner.class)
-public class ArkParameterOperatingSystemTypeTest {
-
-    @Mock
-    private ArkParameterOperatingSystemType mockOsType;
-
-    @Test
-    public void testGetValueForAndroid() {
-        when(mockOsType.getValue()).thenReturn("ANDROID");
-        assertEquals("ANDROID", mockOsType.getValue());
-    }
-
-    @Test
-    public void testGetValueForIOS() {
-        when(mockOsType.getValue()).thenReturn("IOS");
-        assertEquals("IOS", mockOsType.getValue());
-    }
-}
-
-
-
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
-
-@RunWith(MockitoJUnitRunner.class)
-public class ArkParameterPolicyTypeTest {
-
-    @Mock
-    private ArkParameterPolicyType mockPolicyType;
-
-    @Test
-    public void testGetTypeForBlackList() {
-        when(mockPolicyType.getType()).thenReturn("B");
-        assertEquals("B", mockPolicyType.getType());
-    }
-
-    @Test
-    public void testGetTypeForDistribution() {
-        when(mockPolicyType.getType()).thenReturn("D");
-        assertEquals("D", mockPolicyType.getType());
-    }
-}
-
-
-
