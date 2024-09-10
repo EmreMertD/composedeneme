@@ -10,10 +10,10 @@ import java.util.Arrays;
 import java.util.List;
 
 @RunWith(MockitoJUnitRunner.class)
-public class DeviceInfoBlackListPolicyTest {
+public class OperatingSystemStagingPolicyTest {
 
     @InjectMocks
-    private DeviceInfoBlackListPolicy deviceInfoBlackListPolicy;
+    private OperatingSystemStagingPolicy operatingSystemStagingPolicy;
 
     @Mock
     private IReadArkParameterDynamicService mockDynamicService;
@@ -29,14 +29,14 @@ public class DeviceInfoBlackListPolicyTest {
 
     @Before
     public void setUp() {
-        deviceInfoBlackListPolicy = new DeviceInfoBlackListPolicy(mockDynamicService);
+        operatingSystemStagingPolicy = new OperatingSystemStagingPolicy(mockDynamicService);
     }
 
     @Test
-    public void testCheckDeviceInfoInBlackList_DeviceNotInBlackList() throws ActionException {
+    public void testCheckOperatingSystemInStaging_NotInStagingList() throws ActionException {
         // Mock input ayarları
-        when(mockInput.getDeviceInfoBlackListParameter()).thenReturn("deviceBlackListParam");
-        when(mockInput.getDeviceInfo()).thenReturn("Device_456");  // Kara listede olmayan cihaz bilgisi
+        when(mockInput.getOperatingSystem()).thenReturn(ArkParameterOperatingSystemType.AND);  // Android işletim sistemi
+        when(mockInput.getAndroidFeatureControlParameter()).thenReturn("androidFeatureControlParam");
         when(mockInput.getGroupName()).thenReturn("groupName");
         when(mockInput.getAttributeName()).thenReturn("attributeName");
         when(mockInput.getCache()).thenReturn("cache");
@@ -45,19 +45,19 @@ public class DeviceInfoBlackListPolicyTest {
         // Mock DynamicService ayarları
         when(mockDynamicService.getArkParameterListWithCodeName(any())).thenReturn(mockOutput);
 
-        // Kara listeye ekliyoruz fakat cihaz kara listede değil
+        // Staging listesine ekliyoruz fakat işletim sistemi staging listede değil
         List<ArkParameterServiceOutput> mockItems = Arrays.asList(mockServiceOutput);
 
         // getItems() metodu mockItems listesini döndürecek şekilde ayarlanıyor
         when(mockOutput.getItems()).thenReturn(mockItems);
 
-        // Kara listede farklı bir cihaz varmış gibi davranıyoruz
-        when(mockServiceOutput.getPrmValue()).thenReturn("Device_123");  // Kara listede olan başka bir cihaz
+        // Staging listede farklı bir işletim sistemi varmış gibi davranıyoruz
+        when(mockServiceOutput.getPrmValue()).thenReturn("IOS");  // Staging listede olan iOS işletim sistemi
 
         // Test edilen metodu çağırıyoruz
-        boolean result = deviceInfoBlackListPolicy.validate(mockInput);
+        boolean result = operatingSystemStagingPolicy.validate(mockInput);
 
-        // Beklenen sonucu doğruluyoruz (cihaz kara listede olmadığı için false)
+        // Beklenen sonucu doğruluyoruz (Android işletim sistemi staging listede olmadığı için false)
         assertFalse(result);
     }
 }
