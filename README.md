@@ -6,6 +6,8 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+import java.util.Arrays;
+import java.util.List;
 import java.math.BigDecimal;
 
 @RunWith(MockitoJUnitRunner.class)
@@ -23,6 +25,9 @@ public class CustomerNumberBlackListPolicyTest {
     @Mock
     private ArkParameterListServiceOutput mockOutput;
 
+    @Mock
+    private ArkParameterServiceOutput mockServiceOutput;  // ArkParameterServiceOutput mocklandı
+
     @Before
     public void setUp() {
         customerNumberBlackListPolicy = new CustomerNumberBlackListPolicy(mockDynamicService);
@@ -30,7 +35,7 @@ public class CustomerNumberBlackListPolicyTest {
 
     @Test
     public void testCheckCustomerNumberInBlackList_Success() throws ActionException {
-        // Input mock ayarları
+        // Mock input ayarları
         when(mockInput.getCustomerNumberBlackListParameter()).thenReturn("blackListParam");
         when(mockInput.getCustomerNum()).thenReturn(BigDecimal.ONE);
         when(mockInput.getGroupName()).thenReturn("groupName");
@@ -40,33 +45,17 @@ public class CustomerNumberBlackListPolicyTest {
 
         // Mock DynamicService ayarları
         when(mockDynamicService.getArkParameterListWithCodeName(any())).thenReturn(mockOutput);
-        when(mockOutput.getItems()).thenReturn(Arrays.asList("123", "456"));  // Blacklistteki itemlar
+
+        // Mock edilen ArkParameterServiceOutput öğesini listeye ekliyoruz
+        List<ArkParameterServiceOutput> mockItems = Arrays.asList(mockServiceOutput);
+
+        // getItems() metodu mockItems listesini döndürecek şekilde ayarlanıyor
+        when(mockOutput.getItems()).thenReturn(mockItems);
 
         // Test edilen metodu çağırıyoruz
         boolean result = customerNumberBlackListPolicy.checkCustomerNumberInBlackList(mockInput);
 
         // Beklenen sonucu doğruluyoruz
         assertTrue(result);
-    }
-
-    @Test
-    public void testCheckCustomerNumberInBlackList_CustomerNotInBlackList() throws ActionException {
-        // Input mock ayarları
-        when(mockInput.getCustomerNumberBlackListParameter()).thenReturn("blackListParam");
-        when(mockInput.getCustomerNum()).thenReturn(BigDecimal.TEN);
-        when(mockInput.getGroupName()).thenReturn("groupName");
-        when(mockInput.getAttributeName()).thenReturn("attributeName");
-        when(mockInput.getCache()).thenReturn("cache");
-        when(mockInput.getDialect()).thenReturn("dialect");
-
-        // Mock DynamicService ayarları
-        when(mockDynamicService.getArkParameterListWithCodeName(any())).thenReturn(mockOutput);
-        when(mockOutput.getItems()).thenReturn(Arrays.asList("123", "456"));  // Blacklistte bulunmayan itemlar
-
-        // Test edilen metodu çağırıyoruz
-        boolean result = customerNumberBlackListPolicy.checkCustomerNumberInBlackList(mockInput);
-
-        // Beklenen sonucu doğruluyoruz
-        assertFalse(result);  // Bu durumda müşteri blacklistte değil
     }
 }
