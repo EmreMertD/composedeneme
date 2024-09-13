@@ -1,88 +1,89 @@
-import android.content.Context
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.preferencesDataStore
-import androidx.test.core.app.ApplicationProvider
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.runTest
-import org.junit.Assert.*
-import org.junit.Before
-import org.junit.Test
+import android.content.Context;
+import androidx.test.core.app.ApplicationProvider;
+import org.jetbrains.annotations.NotNull;
+import org.junit.Before;
+import org.junit.Test;
 
-@OptIn(ExperimentalCoroutinesApi::class)
-class PreferencesDataStoreManagerTest {
+import java.util.HashSet;
+import java.util.Set;
 
-    private lateinit var storageManager: PreferencesDataStoreManager
-    private val context: Context = ApplicationProvider.getApplicationContext()
+import static org.junit.Assert.*;
+
+public class PreferencesDataStoreManagerJavaTest {
+
+    private PreferencesDataStoreManager storageManager;
+    private Context context = ApplicationProvider.getApplicationContext();
 
     @Before
-    fun setUp() {
-        storageManager = PreferencesDataStoreManager(context)
+    public void setUp() {
+        storageManager = new PreferencesDataStoreManager(context);
     }
 
     @Test
-    fun testPutAndGetStringValue() = runTest {
-        val key = "username"
-        val value = "JohnDoe"
+    public void testPutAndGetStringValue() {
+        String key = "username";
+        String value = "JohnDoe";
 
-        // Değer kaydet
-        storageManager.putValue(key, value)
+        // String değer kaydetme
+        storageManager.putValue(key, value);
 
-        // Değer kontrolü
-        val retrievedValue: String? = storageManager.getValue(key, String::class.java)
-        assertEquals(value, retrievedValue)
+        // String değer okuma
+        String retrievedValue = storageManager.getValue(key, String.class);
+        assertEquals(value, retrievedValue);
     }
 
     @Test
-    fun testPutAndGetIntValue() = runTest {
-        val key = "age"
-        val value = 30
+    public void testPutAndGetIntValue() {
+        String key = "age";
+        int value = 30;
 
-        // Değer kaydet
-        storageManager.putValue(key, value)
+        // Integer değer kaydetme
+        storageManager.putValue(key, value);
 
-        // Değer kontrolü
-        val retrievedValue: Int? = storageManager.getValue(key, Int::class.java)
-        assertEquals(value, retrievedValue)
+        // Integer değer okuma
+        Integer retrievedValue = storageManager.getValue(key, Integer.class);
+        assertEquals(Integer.valueOf(value), retrievedValue);
     }
 
     @Test
-    fun testPutAndGetSetStringValue() = runTest {
-        val key = "favorite_foods"
-        val value = setOf("Pizza", "Burger", "Sushi")
+    public void testPutAndGetSetStringValue() {
+        String key = "favorite_foods";
+        Set<String> value = new HashSet<>();
+        value.add("Pizza");
+        value.add("Burger");
+        value.add("Sushi");
 
-        // Değer kaydet
-        storageManager.putValue(key, value)
+        // Set<String> değer kaydetme
+        storageManager.putValue(key, value);
 
-        // Değer kontrolü
-        val retrievedValue: Set<String>? = storageManager.getValue(key, Set::class.java) as Set<String>?
-        assertEquals(value, retrievedValue)
+        // Set<String> değer okuma
+        Set<String> retrievedValue = (Set<String>) storageManager.getValue(key, Set.class);
+        assertEquals(value, retrievedValue);
     }
 
     @Test
-    fun testRemoveValue() = runTest {
-        val key = "username"
-        val value = "JohnDoe"
+    public void testRemoveValue() {
+        String key = "username";
+        String value = "JohnDoe";
 
-        // Değer kaydet
-        storageManager.putValue(key, value)
+        // Değer kaydetme
+        storageManager.putValue(key, value);
 
-        // Değeri kaldır
-        storageManager.removeValue(key)
+        // Değeri kaldırma
+        storageManager.removeValue(key);
 
-        // Değerin var olmadığını kontrol et
-        val retrievedValue: String? = storageManager.getValue(key, String::class.java)
-        assertNull(retrievedValue)
+        // Değerin var olmadığını kontrol etme
+        String retrievedValue = storageManager.getValue(key, String.class);
+        assertNull(retrievedValue);
     }
 
     @Test
-    fun testDefaultValue() = runTest {
-        val key = "non_existent_key"
-        val defaultValue = "DefaultUser"
+    public void testDefaultValue() {
+        String key = "non_existent_key";
+        String defaultValue = "DefaultUser";
 
         // Varsayılan değerle kontrol
-        val retrievedValue: String? = storageManager.getValue(key, defaultValue, String::class.java)
-        assertEquals(defaultValue, retrievedValue)
+        String retrievedValue = storageManager.getValue(key, defaultValue, String.class);
+        assertEquals(defaultValue, retrievedValue);
     }
 }
