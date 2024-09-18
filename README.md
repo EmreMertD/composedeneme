@@ -1,3 +1,5 @@
+import com.google.gson.JsonElement
+import com.google.gson.JsonParser
 import kotlinx.coroutines.runBlocking
 import okhttp3.ResponseBody
 import org.junit.Before
@@ -6,13 +8,13 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.*
 import retrofit2.Response
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
+import io.kotest.assertions.throwables.shouldThrow
 
 class SecuredRetrofitClientTest {
 
     private lateinit var securedRetrofitClient: SecuredRetrofitClient
     private val mockService = mock(RetrofitService::class.java)
-    private val gson = mock(com.google.gson.Gson::class.java)
+    private val mockGson = mock(com.google.gson.Gson::class.java)
 
     @Before
     fun setUp() {
@@ -21,33 +23,42 @@ class SecuredRetrofitClientTest {
             firstdomain = "https://example.com",
             certificateHashValues = emptyList()
         ).apply {
-            service = mockService
+            // `service` val olarak tanımlandığı için mock yapılamıyor,
+            // ancak testin içinde mock kullanacağımızdan dolayı RetrofitService'i simüle edeceğiz.
+            val field = SecuredRetrofitClient::class.java.getDeclaredField("service")
+            field.isAccessible = true
+            field.set(this, mockService)
         }
     }
 
     @Test
     fun `test get request success`() = runBlocking {
-        val mockResponse = Response.success("Mock Response Body")
+        // Mock JSON response
+        val mockJsonResponse = JsonParser.parseString("{\"message\": \"Mock Response Body\"}")
+
+        val mockResponse = Response.success(mockJsonResponse)
 
         `when`(mockService.get(anyString(), anyMap(), anyMap())).thenReturn(mockResponse)
+        `when`(mockGson.fromJson<JsonElement>(any(), eq(JsonElement::class.java))).thenReturn(mockJsonResponse)
 
-        val result: String = securedRetrofitClient.get(
+        val result: JsonElement = securedRetrofitClient.get(
             route = "/test",
             queries = emptyMap(),
             headers = emptyMap()
         )
 
-        assertEquals("Mock Response Body", result)
+        assertEquals(mockJsonResponse, result)
     }
 
     @Test
     fun `test get request failure - non 2xx response`() = runBlocking {
-        val mockResponse = Response.error<String>(500, ResponseBody.create(null, "Error"))
+        // Mock error response
+        val mockErrorResponse = Response.error<JsonElement>(500, ResponseBody.create(null, "Error"))
 
-        `when`(mockService.get(anyString(), anyMap(), anyMap())).thenReturn(mockResponse)
+        `when`(mockService.get(anyString(), anyMap(), anyMap())).thenReturn(mockErrorResponse)
 
-        assertFailsWith<HttpClientException> {
-            securedRetrofitClient.get<String>(
+        shouldThrow<HttpClientException> {
+            securedRetrofitClient.get<JsonElement>(
                 route = "/test",
                 queries = emptyMap(),
                 headers = emptyMap()
@@ -57,59 +68,66 @@ class SecuredRetrofitClientTest {
 
     @Test
     fun `test getSync request success`() {
-        val mockResponse = Response.success("Mock Sync Response")
+        // Mock JSON response
+        val mockJsonResponse = JsonParser.parseString("{\"message\": \"Mock Sync Response\"}")
+
+        val mockResponse = Response.success(mockJsonResponse)
 
         `when`(mockService.getSync(anyString(), anyMap(), anyMap())).thenReturn(mockResponse)
+        `when`(mockGson.parseElement(any(), eq(JsonElement::class.java))).thenReturn(mockJsonResponse)
 
-        val result: String = securedRetrofitClient.getSync(
+        val result: JsonElement = securedRetrofitClient.getSync(
             route = "/test",
             queries = emptyMap(),
             headers = emptyMap(),
-            responseClass = String::class.java
+            responseClass = JsonElement::class.java
         )
 
-        assertEquals("Mock Sync Response", result)
+        assertEquals(mockJsonResponse, result)
     }
 
     @Test
     fun `test getSync request failure`() {
-        val mockResponse = Response.error<String>(500, ResponseBody.create(null, "Sync Error"))
+        val mockErrorResponse = Response.error<JsonElement>(500, ResponseBody.create(null, "Sync Error"))
 
-        `when`(mockService.getSync(anyString(), anyMap(), anyMap())).thenReturn(mockResponse)
+        `when`(mockService.getSync(anyString(), anyMap(), anyMap())).thenReturn(mockErrorResponse)
 
-        assertFailsWith<HttpClientException> {
-            securedRetrofitClient.getSync<String>(
+        shouldThrow<HttpClientException> {
+            securedRetrofitClient.getSync<JsonElement>(
                 route = "/test",
                 queries = emptyMap(),
                 headers = emptyMap(),
-                responseClass = String::class.java
+                responseClass = JsonElement::class.java
             )
         }
     }
 
     @Test
     fun `test post request success`() = runBlocking {
-        val mockResponse = Response.success("Mock Post Response")
+        val mockJsonResponse = JsonParser.parseString("{\"message\": \"Mock Post Response\"}")
+
+        val mockResponse = Response.success(mockJsonResponse)
 
         `when`(mockService.post(anyString(), anyMap(), anyMap())).thenReturn(mockResponse)
+        `when`(mockGson.fromJson<JsonElement>(any(), eq(JsonElement::class.java))).thenReturn(mockJsonResponse)
 
-        val result: String = securedRetrofitClient.post(
+        val result: JsonElement = securedRetrofitClient.post(
             route = "/test",
             queries = emptyMap(),
             headers = emptyMap()
         )
 
-        assertEquals("Mock Post Response", result)
+        assertEquals(mockJsonResponse, result)
     }
 
     @Test
     fun `test post request failure`() = runBlocking {
-        val mockResponse = Response.error<String>(500, ResponseBody.create(null, "Post Error"))
+        val mockErrorResponse = Response.error<JsonElement>(500, ResponseBody.create(null, "Post Error"))
 
-        `when`(mockService.post(anyString(), anyMap(), anyMap())).thenReturn(mockResponse)
+        `when`(mockService.post(anyString(), anyMap(), anyMap())).thenReturn(mockErrorResponse)
 
-        assertFailsWith<HttpClientException> {
-            securedRetrofitClient.post<String>(
+        shouldThrow<HttpClientException> {
+            securedRetrofitClient.post<JsonElement>(
                 route = "/test",
                 queries = emptyMap(),
                 headers = emptyMap()
