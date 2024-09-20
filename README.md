@@ -1,27 +1,28 @@
+import android.content.Context
+import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
 
 // StorageManager Interface
 interface StorageManager {
     fun <T> putValue(key: String, value: T)
-    fun <T> getValueFlow(key: String, returnType: Class<T>): Flow<T?>  // Kotlin için Flow
-    fun <T> getValueFlow(key: String, defaultValue: T?, returnType: Class<T>): Flow<T?>  // Kotlin için Flow
-    fun <T> getValueCompletableFuture(key: String, returnType: Class<T>): CompletableFuture<Flow<T?>>  // Java için CompletableFuture
-    fun <T> getValueCompletableFuture(key: String, defaultValue: T?, returnType: Class<T>): CompletableFuture<Flow<T?>>  // Java için CompletableFuture
-    fun removeValue(key: String)  // Kotlin ve Java için senkron ve asenkron çalışabilir
-    fun removePref(preferences: String)  // Kotlin ve Java için senkron ve asenkron çalışabilir
+    fun <T> getValueFlow(key: String, returnType: Class<T>): Flow<T?>
+    fun <T> getValueFlow(key: String, defaultValue: T?, returnType: Class<T>): Flow<T?>
+    fun removeValue(key: String)
+    fun removePref(preferences: String)
 }
 
 // DataStoreStorageManager class implementing StorageManager
+@JvmSynthetic
 class DataStoreStorageManager(private val context: Context) : StorageManager {
 
-    // Java'da asenkron işlemler için ExecutorService
-    private val executorService: ExecutorService = Executors.newSingleThreadExecutor()
+    private val Context.dataStore by preferencesDataStore(name = "settings")
 
-    // DataStore'daki anahtarları almak için bir yardımcı metot
+    // DataStore key generation method
     private fun <T> getKey(key: String, returnType: Class<T>): Preferences.Key<T> {
         return when (returnType) {
             String::class.java -> stringPreferencesKey(key) as Preferences.Key<T>
@@ -33,102 +34,44 @@ class DataStoreStorageManager(private val context: Context) : StorageManager {
         }
     }
 
-    // Kotlin'de asenkron removeValue metodu
-    override fun removeValue(key: String) {
-        if (isKotlinEnvironment()) {
-            // Kotlin ortamında coroutine kullanımı
-            GlobalScope.launch(Dispatchers.IO) {
-                context.dataStore.edit { preferences ->
-                    preferences.remove(stringPreferencesKey(key))
-                }
-            }
-        } else {
-            // Java ortamında ExecutorService ile kullanım
-            executorService.execute {
-                context.dataStore.edit { preferences ->
-                    preferences.remove(stringPreferencesKey(key))
-                }
-            }
-        }
-    }
-
-    // Kotlin'de asenkron removePref metodu
-    override fun removePref(preferences: String) {
-        if (isKotlinEnvironment()) {
-            // Kotlin ortamında coroutine kullanımı
-            GlobalScope.launch(Dispatchers.IO) {
-                context.dataStore.edit {
-                    it.clear()
-                }
-            }
-        } else {
-            // Java ortamında ExecutorService ile kullanım
-            executorService.execute {
-                context.dataStore.edit {
-                    it.clear()
-                }
-            }
-        }
-    }
-
-    // Kotlin ve Java için putValue metodu
-    override fun <T> putValue(key: String, value: T) {
-        if (isKotlinEnvironment()) {
-            // Kotlin ortamında coroutine kullanımı
-            GlobalScope.launch(Dispatchers.IO) {
-                context.dataStore.edit { preferences ->
-                    preferences[getKey(key, value!!::class.java) as Preferences.Key<T>] = value
-                }
-            }
-        } else {
-            // Java ortamında ExecutorService ile kullanım
-            executorService.execute {
-                context.dataStore.edit { preferences ->
-                    preferences[getKey(key, value!!::class.java) as Preferences.Key<T>] = value
-                }
-            }
-        }
-    }
-
-    // Kotlin Flow için getValue metodu
+    // Kotlin Flow implementation for getValue
     override fun <T> getValueFlow(key: String, returnType: Class<T>): Flow<T?> {
         return context.dataStore.data.map { preferences ->
             preferences[getKey(key, returnType)]
         }
     }
 
-    // Kotlin Flow için getValue metodu (default değer ile)
+    // Kotlin Flow with default value
     override fun <T> getValueFlow(key: String, defaultValue: T?, returnType: Class<T>): Flow<T?> {
         return context.dataStore.data.map { preferences ->
             preferences[getKey(key, returnType)] ?: defaultValue
         }
     }
 
-    // Java için CompletableFuture metodu (Flow döndürme)
-    override fun <T> getValueCompletableFuture(key: String, returnType: Class<T>): CompletableFuture<Flow<T?>> {
-        return CompletableFuture.supplyAsync {
-            context.dataStore.data.map { preferences ->
-                preferences[getKey(key, returnType)]
+    // Put value method for both Kotlin and Java
+    override fun <T> putValue(key: String, value: T) {
+        GlobalScope.launch(Dispatchers.IO) {
+            context.dataStore.edit { preferences ->
+                preferences[getKey(key, value!!::class.java) as Preferences.Key<T>] = value
             }
         }
     }
 
-    // Java için CompletableFuture metodu (Flow döndürme, default değer ile)
-    override fun <T> getValueCompletableFuture(key: String, defaultValue: T?, returnType: Class<T>): CompletableFuture<Flow<T?>> {
-        return CompletableFuture.supplyAsync {
-            context.dataStore.data.map { preferences ->
-                preferences[getKey(key, returnType)] ?: defaultValue
+    // Remove value method
+    override fun removeValue(key: String) {
+        GlobalScope.launch(Dispatchers.IO) {
+            context.dataStore.edit { preferences ->
+                preferences.remove(stringPreferencesKey(key))
             }
         }
     }
 
-    // Ortamın Kotlin olup olmadığını kontrol eden yardımcı metod
-    private fun isKotlinEnvironment(): Boolean {
-        return try {
-            Class.forName("kotlin.Unit")
-            true
-        } catch (e: ClassNotFoundException) {
-            false
+    // Remove all preferences
+    override fun removePref(preferences: String) {
+        GlobalScope.launch(Dispatchers.IO) {
+            context.dataStore.edit {
+                it.clear()
+            }
         }
     }
 }
