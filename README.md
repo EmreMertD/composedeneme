@@ -1,106 +1,134 @@
-@OptIn(ExperimentalCoroutinesApi::class)
-class DigitalNetworkHandlerTest {
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
-    private lateinit var digitalNetwork: DigitalNetwork
-    private lateinit var networkHandler: NetworkHandler
-    private lateinit var tokenManager: TokenManager
-    private lateinit var digitalNetworkHandler: DigitalNetworkHandler
+// StorageManager Interface
+interface StorageManager {
+    fun <T> putValue(key: String, value: T)
+    fun <T> getValueFlow(key: String, returnType: Class<T>): Flow<T?>  // Kotlin için Flow
+    fun <T> getValueFlow(key: String, defaultValue: T?, returnType: Class<T>): Flow<T?>  // Kotlin için Flow
+    fun <T> getValueCompletableFuture(key: String, returnType: Class<T>): CompletableFuture<Flow<T?>>  // Java için CompletableFuture
+    fun <T> getValueCompletableFuture(key: String, defaultValue: T?, returnType: Class<T>): CompletableFuture<Flow<T?>>  // Java için CompletableFuture
+    fun removeValue(key: String)  // Kotlin ve Java için senkron ve asenkron çalışabilir
+    fun removePref(preferences: String)  // Kotlin ve Java için senkron ve asenkron çalışabilir
+}
 
-    @Before
-    fun setUp() {
-        digitalNetwork = mock(DigitalNetwork::class.java)
-        networkHandler = mock(NetworkHandler::class.java)
-        tokenManager = mock(TokenManager::class.java)
-        
-        // DigitalNetworkHandler instance'ını initialize ediyoruz
-        digitalNetworkHandler = DigitalNetworkHandler(digitalNetwork)
+// DataStoreStorageManager class implementing StorageManager
+class DataStoreStorageManager(private val context: Context) : StorageManager {
+
+    // Java'da asenkron işlemler için ExecutorService
+    private val executorService: ExecutorService = Executors.newSingleThreadExecutor()
+
+    // DataStore'daki anahtarları almak için bir yardımcı metot
+    private fun <T> getKey(key: String, returnType: Class<T>): Preferences.Key<T> {
+        return when (returnType) {
+            String::class.java -> stringPreferencesKey(key) as Preferences.Key<T>
+            Int::class.java -> intPreferencesKey(key) as Preferences.Key<T>
+            Boolean::class.java -> booleanPreferencesKey(key) as Preferences.Key<T>
+            Float::class.java -> floatPreferencesKey(key) as Preferences.Key<T>
+            Long::class.java -> longPreferencesKey(key) as Preferences.Key<T>
+            else -> throw IllegalArgumentException("Unsupported type: ${returnType.name}")
+        }
     }
 
-    @Test
-    fun `test GET request success`() = runTest {
-        // Başarılı bir GET isteği senaryosu
-        val route = "test/route"
-        val method = Method.Get
-        val headers = mapOf("Authorization" to "Bearer token")
-        val queries = mapOf("key" to "value")
-        
-        // Beklenen yanıt türü (mock response)
-        val expectedResponse = mock(Any::class.java)
-
-        // networkHandler.get çağrıldığında expectedResponse dönecek şekilde ayarlarız
-        `when`(networkHandler.get<Any>(anyString(), anyMap(), anyMap(), any<Type>())).thenReturn(expectedResponse)
-
-        // request fonksiyonunu çağırıyoruz
-        digitalNetworkHandler.request<Any, Any>(
-            route = route,
-            method = method,
-            headers = headers,
-            queries = queries,
-            callback = {
-                // İsteğin başarılı olduğunu ve beklenen yanıtı aldığımızı doğruluyoruz
-                assertEquals(InvokerResult.success(expectedResponse), it)
+    // Kotlin'de asenkron removeValue metodu
+    override fun removeValue(key: String) {
+        if (isKotlinEnvironment()) {
+            // Kotlin ortamında coroutine kullanımı
+            GlobalScope.launch(Dispatchers.IO) {
+                context.dataStore.edit { preferences ->
+                    preferences.remove(stringPreferencesKey(key))
+                }
             }
-        )
-        
-        // networkHandler.get metodunun çağrılıp çağrılmadığını kontrol edelim
-        verify(networkHandler).get<Any>(route, headers as HashMap<String, String>, queries as HashMap<String, String>, null)
+        } else {
+            // Java ortamında ExecutorService ile kullanım
+            executorService.execute {
+                context.dataStore.edit { preferences ->
+                    preferences.remove(stringPreferencesKey(key))
+                }
+            }
+        }
     }
 
-    @Test
-    fun `test POST request without body returns error`() = runTest {
-        val route = "test/route"
-        val method = Method.Post
-        val headers = mapOf("Authorization" to "Bearer token")
-        val queries = mapOf("key" to "value")
-
-        digitalNetworkHandler.request<Any, Any>(
-            route = route,
-            method = method,
-            headers = headers,
-            queries = queries,
-            body = null,
-            callback = {
-                // Boş body ile POST isteğinde bulunursak, 400 hata kodu döndürülmeli
-                val error = (it as InvokerResult.Error).error
-                assertEquals(400, error.code)
-                assertEquals("Body is required for POST method", error.message)
+    // Kotlin'de asenkron removePref metodu
+    override fun removePref(preferences: String) {
+        if (isKotlinEnvironment()) {
+            // Kotlin ortamında coroutine kullanımı
+            GlobalScope.launch(Dispatchers.IO) {
+                context.dataStore.edit {
+                    it.clear()
+                }
             }
-        )
+        } else {
+            // Java ortamında ExecutorService ile kullanım
+            executorService.execute {
+                context.dataStore.edit {
+                    it.clear()
+                }
+            }
+        }
     }
 
-    @Test
-    fun `test token refresh on 401 error`() = runTest {
-        val route = "test/route"
-        val method = Method.Get
-        val headers = mapOf("Authorization" to "Bearer expired_token")
-        val queries = mapOf("key" to "value")
-
-        // 401 hatası alındığında, token yenileme işlemi tetiklenecek
-        `when`(networkHandler.get<Any>(anyString(), anyMap(), anyMap(), any<Type>())).thenThrow(
-            InvokerError(401, "Unauthorized")
-        )
-
-        // TokenManager'ın refreshToken fonksiyonunu mockluyoruz
-        doAnswer {
-            // Token yenilenmesini tetikliyoruz ve tekrar request fonksiyonu çağrılacak.
-            it.getArgument<() -> Unit>(0).invoke()
-        }.`when`(tokenManager).refreshToken(any())
-
-        // Token yenileme çağrısını tetikleyecek şekilde request fonksiyonunu çalıştırıyoruz
-        digitalNetworkHandler.request<Any, Any>(
-            route = route,
-            method = method,
-            headers = headers,
-            queries = queries,
-            callback = {
-                // Yenilenen token ile tekrar denenecek
-                // İkinci kez request çağrısı yapıldığında onceTokenRefreshed true olmalı
-                // Bunu dolaylı olarak test edeceğiz
-                assertTrue(digitalNetworkHandler.isOnceTokenRefreshed())
+    // Kotlin ve Java için putValue metodu
+    override fun <T> putValue(key: String, value: T) {
+        if (isKotlinEnvironment()) {
+            // Kotlin ortamında coroutine kullanımı
+            GlobalScope.launch(Dispatchers.IO) {
+                context.dataStore.edit { preferences ->
+                    preferences[getKey(key, value!!::class.java) as Preferences.Key<T>] = value
+                }
             }
-        )
+        } else {
+            // Java ortamında ExecutorService ile kullanım
+            executorService.execute {
+                context.dataStore.edit { preferences ->
+                    preferences[getKey(key, value!!::class.java) as Preferences.Key<T>] = value
+                }
+            }
+        }
+    }
 
-        // Token yenileme işleminin gerçekleşip gerçekleşmediğini kontrol edelim
-        verify(tokenManager, times(1)).refreshToken(any())
+    // Kotlin Flow için getValue metodu
+    override fun <T> getValueFlow(key: String, returnType: Class<T>): Flow<T?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[getKey(key, returnType)]
+        }
+    }
+
+    // Kotlin Flow için getValue metodu (default değer ile)
+    override fun <T> getValueFlow(key: String, defaultValue: T?, returnType: Class<T>): Flow<T?> {
+        return context.dataStore.data.map { preferences ->
+            preferences[getKey(key, returnType)] ?: defaultValue
+        }
+    }
+
+    // Java için CompletableFuture metodu (Flow döndürme)
+    override fun <T> getValueCompletableFuture(key: String, returnType: Class<T>): CompletableFuture<Flow<T?>> {
+        return CompletableFuture.supplyAsync {
+            context.dataStore.data.map { preferences ->
+                preferences[getKey(key, returnType)]
+            }
+        }
+    }
+
+    // Java için CompletableFuture metodu (Flow döndürme, default değer ile)
+    override fun <T> getValueCompletableFuture(key: String, defaultValue: T?, returnType: Class<T>): CompletableFuture<Flow<T?>> {
+        return CompletableFuture.supplyAsync {
+            context.dataStore.data.map { preferences ->
+                preferences[getKey(key, returnType)] ?: defaultValue
+            }
+        }
+    }
+
+    // Ortamın Kotlin olup olmadığını kontrol eden yardımcı metod
+    private fun isKotlinEnvironment(): Boolean {
+        return try {
+            Class.forName("kotlin.Unit")
+            true
+        } catch (e: ClassNotFoundException) {
+            false
+        }
     }
 }
