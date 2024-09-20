@@ -1,11 +1,3 @@
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runTest
-import org.junit.Before
-import org.junit.Test
-import org.mockito.ArgumentCaptor
-import org.mockito.Mockito.*
-import kotlin.test.assertEquals
-
 @OptIn(ExperimentalCoroutinesApi::class)
 class DigitalNetworkHandlerTest {
 
@@ -89,12 +81,12 @@ class DigitalNetworkHandlerTest {
         )
 
         // TokenManager'ın refreshToken fonksiyonunu mockluyoruz
-        `when`(tokenManager.refreshToken(any())).thenAnswer {
-            // token yenilendiğinde token değişecek
-            digitalNetworkHandler.onceTokenRefreshed = true
-            Unit
-        }
+        doAnswer {
+            // Token yenilenmesini tetikliyoruz ve tekrar request fonksiyonu çağrılacak.
+            it.getArgument<() -> Unit>(0).invoke()
+        }.`when`(tokenManager).refreshToken(any())
 
+        // Token yenileme çağrısını tetikleyecek şekilde request fonksiyonunu çalıştırıyoruz
         digitalNetworkHandler.request<Any, Any>(
             route = route,
             method = method,
@@ -102,8 +94,13 @@ class DigitalNetworkHandlerTest {
             queries = queries,
             callback = {
                 // Yenilenen token ile tekrar denenecek
-                verify(tokenManager).refreshToken(any())
+                // İkinci kez request çağrısı yapıldığında onceTokenRefreshed true olmalı
+                // Bunu dolaylı olarak test edeceğiz
+                assertTrue(digitalNetworkHandler.isOnceTokenRefreshed())
             }
         )
+
+        // Token yenileme işleminin gerçekleşip gerçekleşmediğini kontrol edelim
+        verify(tokenManager, times(1)).refreshToken(any())
     }
 }
