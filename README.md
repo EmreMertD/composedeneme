@@ -20,9 +20,32 @@ interface StorageManager {
 @JvmSynthetic
 class DataStoreStorageManager(private val context: Context) : StorageManager {
 
-    private val Context.dataStore by preferencesDataStore(name = "settings")
+    import android.content.Context
+import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 
-    // DataStore key generation method
+// StorageManager Interface
+interface StorageManager {
+    fun <T> putValue(key: String, value: T)
+    fun <T> getValueFlow(key: String, returnType: Class<T>): Flow<T?>
+    fun <T> getValueFlow(key: String, defaultValue: T?, returnType: Class<T>): Flow<T?>
+    fun removeValue(key: String)
+    fun removePref(preferences: String)
+}
+
+// DataStoreStorageManager class implementing StorageManager
+@JvmSynthetic
+class DataStoreStorageManager(
+    private val context: Context,
+    private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob()) // Default olarak IO dispatcher ve SupervisorJob kullanıyoruz
+) : StorageManager {
+
+    // DataStore referansını doğrudan saklıyoruz
+    private val dataStore = context.dataStore
+
+    // Type-safe key generation
     private fun <T> getKey(key: String, returnType: Class<T>): Preferences.Key<T> {
         return when (returnType) {
             String::class.java -> stringPreferencesKey(key) as Preferences.Key<T>
@@ -34,44 +57,73 @@ class DataStoreStorageManager(private val context: Context) : StorageManager {
         }
     }
 
-    // Kotlin Flow implementation for getValue
+    // Asenkron veri alma işlemi
     override fun <T> getValueFlow(key: String, returnType: Class<T>): Flow<T?> {
-        return context.dataStore.data.map { preferences ->
-            preferences[getKey(key, returnType)]
-        }
+        return dataStore.data
+            .map { preferences -> 
+                preferences[getKey(key, returnType)]
+            }
+            .catch { e -> 
+                logError(e)
+                emit(null) // Hata durumunda null değeri yayıyoruz
+            }
     }
 
-    // Kotlin Flow with default value
+    // Asenkron veri alma işlemi, default değeri de işleyerek
     override fun <T> getValueFlow(key: String, defaultValue: T?, returnType: Class<T>): Flow<T?> {
-        return context.dataStore.data.map { preferences ->
-            preferences[getKey(key, returnType)] ?: defaultValue
-        }
+        return dataStore.data
+            .map { preferences -> 
+                preferences[getKey(key, returnType)] ?: defaultValue
+            }
+            .catch { e -> 
+                logError(e)
+                emit(defaultValue) // Hata durumunda varsayılan değeri yayıyoruz
+            }
     }
 
-    // Put value method for both Kotlin and Java
+    // Veriyi arka planda kaydetmek için sadece scope.launch kullanıyoruz
     override fun <T> putValue(key: String, value: T) {
-        GlobalScope.launch(Dispatchers.IO) {
+        scope.launch {
             context.dataStore.edit { preferences ->
                 preferences[getKey(key, value!!::class.java) as Preferences.Key<T>] = value
             }
+        }.invokeOnCompletion { exception ->
+            exception?.let { logError(it) } // Hata varsa loglama
         }
     }
 
-    // Remove value method
+    // Veriyi arka planda silme işlemi
     override fun removeValue(key: String) {
-        GlobalScope.launch(Dispatchers.IO) {
+        scope.launch {
             context.dataStore.edit { preferences ->
                 preferences.remove(stringPreferencesKey(key))
             }
+        }.invokeOnCompletion { exception ->
+            exception?.let { logError(it) } // Hata varsa loglama
         }
     }
 
-    // Remove all preferences
+    // Tüm verileri arka planda temizleme işlemi
     override fun removePref(preferences: String) {
-        GlobalScope.launch(Dispatchers.IO) {
+        scope.launch {
             context.dataStore.edit {
                 it.clear()
             }
+        }.invokeOnCompletion { exception ->
+            exception?.let { logError(it) } // Hata varsa loglama
         }
     }
+
+    // Hata loglama işlemi
+    private fun logError(e: Throwable) {
+        println("DataStore error: ${e.message}")
+        e.printStackTrace()
+    }
+
+    // CoroutineScope'u manuel olarak kapatma metodu
+    fun close() {
+        scope.cancel()
+    }
+}
+
 }
