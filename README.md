@@ -5,142 +5,150 @@
     import kotlinx.coroutines.*
     import kotlinx.coroutines.flow.*
     
-    // StorageManager Interface
-    interface StorageManager {
-        fun <T> putValue(key: String, value: T)
-        fun putValues(values: Map<String, Any>)
-        fun <T> getValueFlow(key: String, returnType: Class<T>): Flow<T?>
-        fun <T> getValueFlow(key: String, defaultValue: T?, returnType: Class<T>): Flow<T?>
-        fun removeValue(key: String)
-        fun removeValues(keys: List<String>)
-        fun removePref()
-    }
+    import android.content.Context
+    import androidx.datastore.preferences.core.*
+    import androidx.datastore.preferences.preferencesDataStore
+    import androidx.test.core.app.ApplicationProvider
+    import androidx.test.ext.junit.runners.AndroidJUnit4
+    import com.google.common.truth.Truth.assertThat
+    import kotlinx.coroutines.*
+    import kotlinx.coroutines.flow.first
+    import kotlinx.coroutines.flow.firstOrNull
+    import kotlinx.coroutines.test.*
+    import org.junit.After
+    import org.junit.Before
+    import org.junit.Test
+    import org.junit.runner.RunWith
     
-    // DataStoreStorageManager class implementing StorageManager
-    @JvmSynthetic
-    class DataStoreStorageManager(
-        private val context: Context,
-        private val prefName: String, // Kullanıcı tarafından belirlenen DataStore adı
-        private val scope: CoroutineScope // Dışarıdan geçirilen CoroutineScope
-    ) : StorageManager {
+    @RunWith(AndroidJUnit4::class)
+    class DataStoreStorageManagerTest {
 
-    // Context uzantısı üzerinden prefName ile dinamik olarak dataStore'a erişim
-    private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = prefName)
+    private val testDispatcher = StandardTestDispatcher()
+    private val testScope = TestScope(testDispatcher)
 
-    // DataStore referansı
-    private val dataStore = context.dataStore
+    private lateinit var context: Context
+    private lateinit var dataStoreManager: DataStoreStorageManager
 
-    // Type-safe key generation methodu
-    private fun <T> getKey(key: String, returnType: Class<T>): Preferences.Key<T> {
-        return when (returnType) {
-            String::class.java -> stringPreferencesKey(key) as Preferences.Key<T>
-            Int::class.java -> intPreferencesKey(key) as Preferences.Key<T>
-            Boolean::class.java -> booleanPreferencesKey(key) as Preferences.Key<T>
-            Float::class.java -> floatPreferencesKey(key) as Preferences.Key<T>
-            Long::class.java -> longPreferencesKey(key) as Preferences.Key<T>
-            else -> throw IllegalArgumentException("Unsupported type: ${returnType.name}")
-        }
+    // Context uzantısı ile TestDataStore tanımı
+    private val Context.testDataStore: DataStore<Preferences> by preferencesDataStore(name = "test_settings")
+
+    @Before
+    fun setup() {
+        context = ApplicationProvider.getApplicationContext()
+        dataStoreManager = DataStoreStorageManager(context, testScope)
     }
 
-    // Asenkron veri alma işlemi, Flow döndürür
-    override fun <T> getValueFlow(key: String, returnType: Class<T>): Flow<T?> {
-        return dataStore.data
-            .map { preferences -> 
-                preferences[getKey(key, returnType)]
-            }
-            .catch { e -> 
-                logError(e)
-                emit(null) // Hata durumunda null değeri yayıyoruz
-            }
-            .flowOn(Dispatchers.IO) // Yukarı akış işlemlerinin IO dispatcher'da yapılmasını sağlar
+    @After
+    fun tearDown() {
+        // Test scope temizliği
+        testScope.cancel()
     }
 
-    // Asenkron veri alma işlemi, default değeri de işleyerek
-    override fun <T> getValueFlow(key: String, defaultValue: T?, returnType: Class<T>): Flow<T?> {
-        return dataStore.data
-            .map { preferences -> 
-                preferences[getKey(key, returnType)] ?: defaultValue
-            }
-            .catch { e -> 
-                logError(e)
-                emit(defaultValue) // Hata durumunda varsayılan değeri yayıyoruz
-            }
-            .flowOn(Dispatchers.IO) // Yukarı akış işlemlerinin IO dispatcher'da yapılmasını sağlar
+    @Test
+    fun `test putValue and getValueFlow`() = runTest {
+        // putValue kullanarak veri ekleme
+        dataStoreManager.putValue("test_key", "test_value")
+
+        // getValueFlow kullanarak veri okuma
+        val result = dataStoreManager.getValueFlow("test_key", String::class.java).first()
+
+        // Beklenen sonucu kontrol etme
+        assertThat(result).isEqualTo("test_value")
     }
 
-    // Tekli veri yazma işlemi
-    override fun <T> putValue(key: String, value: T) {
-        scope.launch {
-            dataStore.edit { preferences ->
-                preferences[getKey(key, value!!::class.java) as Preferences.Key<T>] = value
-            }
-        }.invokeOnCompletion { exception ->
-            exception?.let { logError(it) } // Hata varsa loglama
-        }
+    @Test
+    fun `test getValueFlow with default value`() = runTest {
+        // Varsayılan değer ile veri okuma (test_key henüz eklenmedi)
+        val result = dataStoreManager.getValueFlow("test_key", "default_value", String::class.java).first()
+
+        // Varsayılan değeri kontrol etme
+        assertThat(result).isEqualTo("default_value")
     }
 
-    // Toplu veri yazma işlemi
-    override fun putValues(values: Map<String, Any>) {
-        scope.launch {
-            dataStore.edit { preferences ->
-                for ((key, value) in values) {
-                    try {
-                        // getKey metodu ile key türünü belirleyerek ekleme yapıyoruz
-                        val preferencesKey = getKey(key, value::class.java)
-                        @Suppress("UNCHECKED_CAST")
-                        preferences[preferencesKey as Preferences.Key<Any>] = value
-                    } catch (e: IllegalArgumentException) {
-                        logError(e)
-                        // Desteklenmeyen tür hatası varsa, hatayı işleyin
-                    }
-                }
-            }
-        }.invokeOnCompletion { exception ->
-            exception?.let { logError(it) } // Hata varsa loglama
-        }
+    @Test
+    fun `test removeValue`() = runTest {
+        // putValue kullanarak veri ekleme
+        dataStoreManager.putValue("test_key", "test_value")
+
+        // Değeri silme
+        dataStoreManager.removeValue("test_key")
+
+        // Değeri okuma (null bekleniyor çünkü silindi)
+        val result = dataStoreManager.getValueFlow("test_key", String::class.java).firstOrNull()
+
+        // Beklenen sonucu kontrol etme
+        assertThat(result).isNull()
     }
 
-    // Tekli veri silme işlemi
-    override fun removeValue(key: String) {
-        scope.launch {
-            dataStore.edit { preferences ->
-                preferences.remove(stringPreferencesKey(key))
-            }
-        }.invokeOnCompletion { exception ->
-            exception?.let { logError(it) } // Hata varsa loglama
-        }
+    @Test
+    fun `test putValues and getValueFlow`() = runTest {
+        // Toplu veri ekleme
+        val values = mapOf(
+            "key1" to "value1",
+            "key2" to 123,
+            "key3" to true
+        )
+        dataStoreManager.putValues(values)
+
+        // Eklenen verileri okuma ve kontrol etme
+        val result1 = dataStoreManager.getValueFlow("key1", String::class.java).first()
+        val result2 = dataStoreManager.getValueFlow("key2", Int::class.java).first()
+        val result3 = dataStoreManager.getValueFlow("key3", Boolean::class.java).first()
+
+        assertThat(result1).isEqualTo("value1")
+        assertThat(result2).isEqualTo(123)
+        assertThat(result3).isEqualTo(true)
     }
 
-    // Toplu veri silme işlemi
-    override fun removeValues(keys: List<String>) {
-        scope.launch {
-            dataStore.edit { preferences ->
-                keys.forEach { key ->
-                    preferences.remove(stringPreferencesKey(key))
-                }
-            }
-        }.invokeOnCompletion { exception ->
-            exception?.let { logError(it) } // Hata varsa loglama
-        }
+    @Test
+    fun `test removeValues`() = runTest {
+        // Toplu veri ekleme
+        val values = mapOf(
+            "key1" to "value1",
+            "key2" to 123,
+            "key3" to true
+        )
+        dataStoreManager.putValues(values)
+
+        // Toplu veri silme
+        dataStoreManager.removeValues(listOf("key1", "key2"))
+
+        // Silinen anahtarların kontrolü
+        val result1 = dataStoreManager.getValueFlow("key1", String::class.java).firstOrNull()
+        val result2 = dataStoreManager.getValueFlow("key2", Int::class.java).firstOrNull()
+        val result3 = dataStoreManager.getValueFlow("key3", Boolean::class.java).first()
+
+        assertThat(result1).isNull()
+        assertThat(result2).isNull()
+        assertThat(result3).isEqualTo(true) // key3 silinmediği için true dönecektir
     }
 
-    // Tüm verileri arka planda temizleme işlemi
-    override fun removePref() {
-        scope.launch {
-            dataStore.edit {
-                it.clear()
-            }
-        }.invokeOnCompletion { exception ->
-            exception?.let { logError(it) } // Hata varsa loglama
-        }
+    @Test
+    fun `test removePref`() = runTest {
+        // Toplu veri ekleme
+        val values = mapOf(
+            "key1" to "value1",
+            "key2" to 123,
+            "key3" to true
+        )
+        dataStoreManager.putValues(values)
+
+        // Tüm verileri silme
+        dataStoreManager.removePref()
+
+        // Tüm anahtarların kontrolü (hepsi null dönmeli)
+        val result1 = dataStoreManager.getValueFlow("key1", String::class.java).firstOrNull()
+        val result2 = dataStoreManager.getValueFlow("key2", Int::class.java).firstOrNull()
+        val result3 = dataStoreManager.getValueFlow("key3", Boolean::class.java).firstOrNull()
+
+        assertThat(result1).isNull()
+        assertThat(result2).isNull()
+        assertThat(result3).isNull()
     }
 
-    // Hata loglama işlemi
-    private fun logError(e: Throwable) {
-        println("DataStore error: ${e.message}")
-        e.printStackTrace()
-    }
 }
+
+
 
 
 
