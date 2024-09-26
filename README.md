@@ -1,152 +1,277 @@
 '''
-    import android.content.Context
-    import androidx.datastore.preferences.core.*
-    import androidx.datastore.preferences.preferencesDataStore
-    import kotlinx.coroutines.*
-    import kotlinx.coroutines.flow.*
-    
-    import android.content.Context
-    import androidx.datastore.preferences.core.*
-    import androidx.datastore.preferences.preferencesDataStore
-    import androidx.test.core.app.ApplicationProvider
-    import androidx.test.ext.junit.runners.AndroidJUnit4
-    import com.google.common.truth.Truth.assertThat
-    import kotlinx.coroutines.*
-    import kotlinx.coroutines.flow.first
-    import kotlinx.coroutines.flow.firstOrNull
-    import kotlinx.coroutines.test.*
-    import org.junit.After
+
+
+    import io.mockk.*
+    import kotlinx.coroutines.ExperimentalCoroutinesApi
+    import kotlinx.coroutines.test.runBlockingTest
     import org.junit.Before
     import org.junit.Test
-    import org.junit.runner.RunWith
+    import kotlin.test.assertEquals
+    import kotlin.test.assertNotNull
     
-    @RunWith(AndroidJUnit4::class)
-    class DataStoreStorageManagerTest {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    class DigitalNetworkHandlerTest {
 
-    private val testDispatcher = StandardTestDispatcher()
-    private val testScope = TestScope(testDispatcher)
-
-    private lateinit var context: Context
-    private lateinit var dataStoreManager: DataStoreStorageManager
-
-    // Context uzantısı ile TestDataStore tanımı
-    private val Context.testDataStore: DataStore<Preferences> by preferencesDataStore(name = "test_settings")
+    private val mockNetworkHandler = mockk<NetworkHandler>()
+    private val mockCallback = mockk<(InvokerResult<Any>) -> Unit>(relaxed = true)
+    private val mockHeaders = mockk<Header>(relaxed = true)
 
     @Before
     fun setup() {
-        context = ApplicationProvider.getApplicationContext()
-        dataStoreManager = DataStoreStorageManager(context, testScope)
-    }
-
-    @After
-    fun tearDown() {
-        // Test scope temizliği
-        testScope.cancel()
+        mockkObject(NetworkHandler.Companion)
+        every { NetworkHandler(any()) } returns mockNetworkHandler
     }
 
     @Test
-    fun `test putValue and getValueFlow`() = runTest {
-        // putValue kullanarak veri ekleme
-        dataStoreManager.putValue("test_key", "test_value")
+    fun `successful GET request`() = runBlockingTest {
+        // Arrange
+        val mockResponse = mockk<NetworkResponse<Any>>()
+        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
+        coEvery { mockResponse.onSuccessSuspend(any()) } answers {
+            secondArg<(Any) -> Unit>().invoke(mockk())
+        }
 
-        // getValueFlow kullanarak veri okuma
-        val result = dataStoreManager.getValueFlow("test_key", String::class.java).first()
-
-        // Beklenen sonucu kontrol etme
-        assertThat(result).isEqualTo("test_value")
-    }
-
-    @Test
-    fun `test getValueFlow with default value`() = runTest {
-        // Varsayılan değer ile veri okuma (test_key henüz eklenmedi)
-        val result = dataStoreManager.getValueFlow("test_key", "default_value", String::class.java).first()
-
-        // Varsayılan değeri kontrol etme
-        assertThat(result).isEqualTo("default_value")
-    }
-
-    @Test
-    fun `test removeValue`() = runTest {
-        // putValue kullanarak veri ekleme
-        dataStoreManager.putValue("test_key", "test_value")
-
-        // Değeri silme
-        dataStoreManager.removeValue("test_key")
-
-        // Değeri okuma (null bekleniyor çünkü silindi)
-        val result = dataStoreManager.getValueFlow("test_key", String::class.java).firstOrNull()
-
-        // Beklenen sonucu kontrol etme
-        assertThat(result).isNull()
-    }
-
-    @Test
-    fun `test putValues and getValueFlow`() = runTest {
-        // Toplu veri ekleme
-        val values = mapOf(
-            "key1" to "value1",
-            "key2" to 123,
-            "key3" to true
+        // Act
+        DigitalNetworkHandler.request<Any, Any>(
+            route = "test/route",
+            method = Method.Get,
+            headers = mockHeaders,
+            callback = mockCallback
         )
-        dataStoreManager.putValues(values)
 
-        // Eklenen verileri okuma ve kontrol etme
-        val result1 = dataStoreManager.getValueFlow("key1", String::class.java).first()
-        val result2 = dataStoreManager.getValueFlow("key2", Int::class.java).first()
-        val result3 = dataStoreManager.getValueFlow("key3", Boolean::class.java).first()
-
-        assertThat(result1).isEqualTo("value1")
-        assertThat(result2).isEqualTo(123)
-        assertThat(result3).isEqualTo(true)
+        // Assert
+        coVerify { mockCallback.invoke(any()) }
     }
 
     @Test
-    fun `test removeValues`() = runTest {
-        // Toplu veri ekleme
-        val values = mapOf(
-            "key1" to "value1",
-            "key2" to 123,
-            "key3" to true
+    fun `successful POST request`() = runBlockingTest {
+        // Arrange
+        val mockResponse = mockk<NetworkResponse<Any>>()
+        coEvery { mockNetworkHandler.post<Any, Any>(any(), any(), any(), any(), any()) } returns mockResponse
+        coEvery { mockResponse.onSuccessSuspend(any()) } answers {
+            secondArg<(Any) -> Unit>().invoke(mockk())
+        }
+
+        // Act
+        DigitalNetworkHandler.request<Any, Any>(
+            route = "test/route",
+            method = Method.Post,
+            body = Any(),
+            headers = mockHeaders,
+            callback = mockCallback
         )
-        dataStoreManager.putValues(values)
 
-        // Toplu veri silme
-        dataStoreManager.removeValues(listOf("key1", "key2"))
-
-        // Silinen anahtarların kontrolü
-        val result1 = dataStoreManager.getValueFlow("key1", String::class.java).firstOrNull()
-        val result2 = dataStoreManager.getValueFlow("key2", Int::class.java).firstOrNull()
-        val result3 = dataStoreManager.getValueFlow("key3", Boolean::class.java).first()
-
-        assertThat(result1).isNull()
-        assertThat(result2).isNull()
-        assertThat(result3).isEqualTo(true) // key3 silinmediği için true dönecektir
+        // Assert
+        coVerify { mockCallback.invoke(any()) }
     }
 
     @Test
-    fun `test removePref`() = runTest {
-        // Toplu veri ekleme
-        val values = mapOf(
-            "key1" to "value1",
-            "key2" to 123,
-            "key3" to true
+    fun `POST request with null body should return error`() = runBlockingTest {
+        // Act
+        DigitalNetworkHandler.request<Any, Any>(
+            route = "test/route",
+            method = Method.Post,
+            headers = mockHeaders,
+            callback = mockCallback
         )
-        dataStoreManager.putValues(values)
 
-        // Tüm verileri silme
-        dataStoreManager.removePref()
-
-        // Tüm anahtarların kontrolü (hepsi null dönmeli)
-        val result1 = dataStoreManager.getValueFlow("key1", String::class.java).firstOrNull()
-        val result2 = dataStoreManager.getValueFlow("key2", Int::class.java).firstOrNull()
-        val result3 = dataStoreManager.getValueFlow("key3", Boolean::class.java).firstOrNull()
-
-        assertThat(result1).isNull()
-        assertThat(result2).isNull()
-        assertThat(result3).isNull()
+        // Assert
+        coVerify {
+            mockCallback.invoke(
+                match { result ->
+                    (result as InvokerResult.Error).error.message == "Body is required for POST method"
+                }
+            )
+        }
     }
 
-}
+    @Test
+    fun `token refresh on UNAUTHORIZED error`() = runBlockingTest {
+        // Arrange
+        val mockResponse = mockk<NetworkResponse<Any>>()
+        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
+        coEvery { mockResponse.onErrorSuspend(any()) } answers {
+            firstArg<(Int, String) -> Unit>().invoke(HttpStatus.UNAUTHORIZED.value(), "Unauthorized")
+        }
+        coEvery { TokenManager.refreshToken(any()) } answers {
+            firstArg<() -> Unit>().invoke()
+        }
+
+        // Act
+        DigitalNetworkHandler.request<Any, Any>(
+            route = "test/route",
+            method = Method.Get,
+            headers = mockHeaders,
+            callback = mockCallback
+        )
+
+        // Assert
+        coVerify { TokenManager.refreshToken(any()) }
+        coVerify { mockCallback.invoke(any()) }
+    }
+
+    @Test
+    fun `onFailureSuspend is invoked on exception`() = runBlockingTest {
+        // Arrange
+        val mockResponse = mockk<NetworkResponse<Any>>()
+        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } throws Exception("Network error")
+
+        // Act
+        DigitalNetworkHandler.request<Any, Any>(
+            route = "test/route",
+            method = Method.Get,
+            headers = mockHeaders,
+            callback = mockCallback
+        )
+
+        // Assert
+        coVerify {
+            mockCallback.invoke(
+                match { result ->
+                    (result as InvokerResult.Error).error.message == "Network error"
+                }
+            )
+        }
+    }
+    
+        @Test
+    fun `UNAUTHORIZED error persists after token refresh`() = runBlockingTest {
+        // Arrange
+        val mockResponse = mockk<NetworkResponse<Any>>()
+        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
+        coEvery { mockResponse.onErrorSuspend(any()) } answers {
+            firstArg<(Int, String) -> Unit>().invoke(HttpStatus.UNAUTHORIZED.value(), "Unauthorized")
+        }
+        coEvery { TokenManager.refreshToken(any()) } answers {
+            firstArg<() -> Unit>().invoke()
+        }
+        // Simulate UNAUTHORIZED again after refresh
+        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
+        coEvery { mockResponse.onErrorSuspend(any()) } answers {
+            firstArg<(Int, String) -> Unit>().invoke(HttpStatus.UNAUTHORIZED.value(), "Unauthorized Again")
+        }
+    
+        // Act
+        DigitalNetworkHandler.request<Any, Any>(
+            route = "test/route",
+            method = Method.Get,
+            headers = mockHeaders,
+            callback = mockCallback
+        )
+    
+        // Assert
+        coVerify { mockCallback.invoke(match { result ->
+            (result as InvokerResult.Error).error.message == "Unauthorized Again"
+        }) }
+    }
+    
+    @Test
+    fun `token refresh throws exception`() = runBlockingTest {
+        // Arrange
+        val mockResponse = mockk<NetworkResponse<Any>>()
+        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
+        coEvery { mockResponse.onErrorSuspend(any()) } answers {
+            firstArg<(Int, String) -> Unit>().invoke(HttpStatus.UNAUTHORIZED.value(), "Unauthorized")
+        }
+        coEvery { TokenManager.refreshToken(any()) } throws Exception("Refresh Token Failed")
+    
+        // Act
+        DigitalNetworkHandler.request<Any, Any>(
+            route = "test/route",
+            method = Method.Get,
+            headers = mockHeaders,
+            callback = mockCallback
+        )
+    
+        // Assert
+        coVerify {
+            mockCallback.invoke(
+                match { result ->
+                    (result as InvokerResult.Error).error.message == "Refresh Token Failed"
+                }
+            )
+        }
+    }
+    
+    @Test
+    fun `responseType not null for GET request`() = runBlockingTest {
+        // Arrange
+        val mockResponse = mockk<NetworkResponse<Any>>()
+        val mockType = mockk<Type>()
+        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
+        coEvery { mockResponse.onSuccessSuspend(any()) } answers {
+            secondArg<(Any) -> Unit>().invoke(mockk())
+        }
+    
+        // Act
+        DigitalNetworkHandler.request<Any, Any>(
+            route = "test/route",
+            method = Method.Get,
+            headers = mockHeaders,
+            responseType = mockType,
+            callback = mockCallback
+        )
+    
+        // Assert
+        coVerify { mockCallback.invoke(any()) }
+    }
+    
+    @Test
+    fun `callback is null does not crash`() = runBlockingTest {
+        // Arrange
+        val mockResponse = mockk<NetworkResponse<Any>>()
+        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
+        coEvery { mockResponse.onSuccessSuspend(any()) } answers {
+            secondArg<(Any) -> Unit>().invoke(mockk())
+        }
+    
+        // Act
+        DigitalNetworkHandler.request<Any, Any>(
+            route = "test/route",
+            method = Method.Get,
+            headers = mockHeaders,
+            callback = null
+        )
+    
+        // Assert
+        // No exception should be thrown, and code should run smoothly.
+    }
+    
+    @Test
+    fun `successful retry after token refresh`() = runBlockingTest {
+        // Arrange
+        val mockResponse = mockk<NetworkResponse<Any>>()
+        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
+        coEvery { mockResponse.onErrorSuspend(any()) } answers {
+            firstArg<(Int, String) -> Unit>().invoke(HttpStatus.UNAUTHORIZED.value(), "Unauthorized")
+        }
+        coEvery { TokenManager.refreshToken(any()) } answers {
+            firstArg<() -> Unit>().invoke()
+        }
+        // Simulate success after token refresh
+        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
+        coEvery { mockResponse.onSuccessSuspend(any()) } answers {
+            secondArg<(Any) -> Unit>().invoke(mockk())
+        }
+
+    // Act
+    DigitalNetworkHandler.request<Any, Any>(
+        route = "test/route",
+        method = Method.Get,
+        headers = mockHeaders,
+        callback = mockCallback
+    )
+
+    // Assert
+    coVerify { mockCallback.invoke(match { result ->
+        result is InvokerResult.Success
+    }) }
+    }
+
+
+
+
+    }
 
 
 
