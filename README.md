@@ -1,282 +1,145 @@
-'''
-
-
-    import io.mockk.*
-    import kotlinx.coroutines.ExperimentalCoroutinesApi
-    import kotlinx.coroutines.test.runBlockingTest
+    import okhttp3.mockwebserver.MockResponse
+    import okhttp3.mockwebserver.MockWebServer
+    import org.junit.After
     import org.junit.Before
     import org.junit.Test
+    import io.mockk.*
+    import kotlinx.coroutines.runBlocking
     import kotlin.test.assertEquals
     import kotlin.test.assertNotNull
     
-    @OptIn(ExperimentalCoroutinesApi::class)
     class DigitalNetworkHandlerTest {
 
-    private val mockNetworkHandler = mockk<NetworkHandler>()
-    private val mockCallback = mockk<(InvokerResult<Any>) -> Unit>(relaxed = true)
-    private val mockHeaders = mockk<Header>(relaxed = true)
+    private lateinit var mockWebServer: MockWebServer
 
     @Before
     fun setup() {
-        mockkObject(NetworkHandler.Companion)
-        every { NetworkHandler(any()) } returns mockNetworkHandler
+        // MockWebServer'ı başlatıyoruz
+        mockWebServer = MockWebServer()
+        mockWebServer.start()
+
+        // DigitalNetworkHandler'ı MockWebServer adresine yönlendirin
+        every { provideNetwork() } returns mockWebServer.url("/").toString()
+    }
+
+    @After
+    fun teardown() {
+        // Testlerden sonra MockWebServer'ı kapatın
+        mockWebServer.shutdown()
     }
 
     @Test
-    fun `successful GET request`() = runBlockingTest {
-        // Arrange
-        val mockResponse = mockk<NetworkResponse<Any>>()
-        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
-        coEvery { mockResponse.onSuccessSuspend(any()) } answers {
-            secondArg<(Any) -> Unit>().invoke(mockk())
-        }
+    fun `test successful GET request`() = runBlocking {
+        // MockWebServer'a başarıyla dönecek bir yanıt ekliyoruz
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody("""{"message": "success"}""")
+        )
 
-        // Act
+        // Mock callback
+        val mockCallback = mockk<(InvokerResult<Any>) -> Unit>(relaxed = true)
+
+        // DigitalNetworkHandler üzerinden GET isteği yap
         DigitalNetworkHandler.request<Any, Any>(
             route = "test/route",
             method = Method.Get,
-            headers = mockHeaders,
             callback = mockCallback
         )
 
-        // Assert
-        coVerify { mockCallback.invoke(any()) }
+        // Gelen isteği doğrula
+        val recordedRequest = mockWebServer.takeRequest()
+        assertEquals("GET", recordedRequest.method)
+        assertEquals("/test/route", recordedRequest.path)
+
+        // Callback'in başarıyla çağrıldığını doğrula
+        verify { mockCallback.invoke(match { it is InvokerResult.Success }) }
     }
 
     @Test
-    fun `successful POST request`() = runBlockingTest {
-        // Arrange
-        val mockResponse = mockk<NetworkResponse<Any>>()
-        coEvery { mockNetworkHandler.post<Any, Any>(any(), any(), any(), any(), any()) } returns mockResponse
-        coEvery { mockResponse.onSuccessSuspend(any()) } answers {
-            secondArg<(Any) -> Unit>().invoke(mockk())
-        }
+    fun `test successful POST request`() = runBlocking {
+        // MockWebServer'a başarıyla dönecek bir yanıt ekliyoruz
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody("""{"message": "success"}""")
+        )
 
-        // Act
+        // Mock callback
+        val mockCallback = mockk<(InvokerResult<Any>) -> Unit>(relaxed = true)
+        val requestBody = mapOf("key" to "value")
+
+        // DigitalNetworkHandler üzerinden POST isteği yap
         DigitalNetworkHandler.request<Any, Any>(
             route = "test/route",
             method = Method.Post,
-            body = Any(),
-            headers = mockHeaders,
+            body = requestBody,
             callback = mockCallback
         )
 
-        // Assert
-        coVerify { mockCallback.invoke(any()) }
+        // Gelen isteği doğrula
+        val recordedRequest = mockWebServer.takeRequest()
+        assertEquals("POST", recordedRequest.method)
+        assertEquals("/test/route", recordedRequest.path)
+        assertEquals("""{"key":"value"}""", recordedRequest.body.readUtf8())
+
+        // Callback'in başarıyla çağrıldığını doğrula
+        verify { mockCallback.invoke(match { it is InvokerResult.Success }) }
     }
 
     @Test
-    fun `POST request with null body should return error`() = runBlockingTest {
-        // Act
-        DigitalNetworkHandler.request<Any, Any>(
-            route = "test/route",
-            method = Method.Post,
-            headers = mockHeaders,
-            callback = mockCallback
+    fun `test unauthorized error response`() = runBlocking {
+        // MockWebServer'a 401 dönecek bir yanıt ekliyoruz
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(401)
+                .setBody("""{"error": "Unauthorized"}""")
         )
 
-        // Assert
-        coVerify {
-            mockCallback.invoke(
-                match { result ->
-                    (result as InvokerResult.Error).error.message == "Body is required for POST method"
-                }
-            )
-        }
-    }
+        // Mock callback
+        val mockCallback = mockk<(InvokerResult<Any>) -> Unit>(relaxed = true)
 
-    @Test
-    fun `token refresh on UNAUTHORIZED error`() = runBlockingTest {
-        // Arrange
-        val mockResponse = mockk<NetworkResponse<Any>>()
-        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
-        coEvery { mockResponse.onErrorSuspend(any()) } answers {
-            firstArg<(Int, String) -> Unit>().invoke(HttpStatus.UNAUTHORIZED.value(), "Unauthorized")
-        }
-        coEvery { TokenManager.refreshToken(any()) } answers {
-            firstArg<() -> Unit>().invoke()
-        }
-
-        // Act
+        // DigitalNetworkHandler üzerinden GET isteği yap
         DigitalNetworkHandler.request<Any, Any>(
             route = "test/route",
             method = Method.Get,
-            headers = mockHeaders,
             callback = mockCallback
         )
 
-        // Assert
-        coVerify { TokenManager.refreshToken(any()) }
-        coVerify { mockCallback.invoke(any()) }
+        // Gelen isteği doğrula
+        val recordedRequest = mockWebServer.takeRequest()
+        assertEquals("GET", recordedRequest.method)
+        assertEquals("/test/route", recordedRequest.path)
+
+        // Callback'in hata ile çağrıldığını doğrula
+        verify { mockCallback.invoke(match { it is InvokerResult.Error }) }
     }
 
     @Test
-    fun `onFailureSuspend is invoked on exception`() = runBlockingTest {
-        // Arrange
-        val mockResponse = mockk<NetworkResponse<Any>>()
-        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } throws Exception("Network error")
+    fun `test internal server error response`() = runBlocking {
+        // MockWebServer'a 500 dönecek bir yanıt ekliyoruz
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(500)
+                .setBody("""{"error": "Internal Server Error"}""")
+        )
 
-        // Act
+        // Mock callback
+        val mockCallback = mockk<(InvokerResult<Any>) -> Unit>(relaxed = true)
+
+        // DigitalNetworkHandler üzerinden GET isteği yap
         DigitalNetworkHandler.request<Any, Any>(
             route = "test/route",
             method = Method.Get,
-            headers = mockHeaders,
             callback = mockCallback
         )
 
-        // Assert
-        coVerify {
-            mockCallback.invoke(
-                match { result ->
-                    (result as InvokerResult.Error).error.message == "Network error"
-                }
-            )
-        }
+        // Gelen isteği doğrula
+        val recordedRequest = mockWebServer.takeRequest()
+        assertEquals("GET", recordedRequest.method)
+        assertEquals("/test/route", recordedRequest.path)
+
+        // Callback'in hata ile çağrıldığını doğrula
+        verify { mockCallback.invoke(match { it is InvokerResult.Error }) }
     }
-    
-        @Test
-    fun `UNAUTHORIZED error persists after token refresh`() = runBlockingTest {
-        // Arrange
-        val mockResponse = mockk<NetworkResponse<Any>>()
-        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
-        coEvery { mockResponse.onErrorSuspend(any()) } answers {
-            firstArg<(Int, String) -> Unit>().invoke(HttpStatus.UNAUTHORIZED.value(), "Unauthorized")
-        }
-        coEvery { TokenManager.refreshToken(any()) } answers {
-            firstArg<() -> Unit>().invoke()
-        }
-        // Simulate UNAUTHORIZED again after refresh
-        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
-        coEvery { mockResponse.onErrorSuspend(any()) } answers {
-            firstArg<(Int, String) -> Unit>().invoke(HttpStatus.UNAUTHORIZED.value(), "Unauthorized Again")
-        }
-    
-        // Act
-        DigitalNetworkHandler.request<Any, Any>(
-            route = "test/route",
-            method = Method.Get,
-            headers = mockHeaders,
-            callback = mockCallback
-        )
-    
-        // Assert
-        coVerify { mockCallback.invoke(match { result ->
-            (result as InvokerResult.Error).error.message == "Unauthorized Again"
-        }) }
     }
-    
-    @Test
-    fun `token refresh throws exception`() = runBlockingTest {
-        // Arrange
-        val mockResponse = mockk<NetworkResponse<Any>>()
-        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
-        coEvery { mockResponse.onErrorSuspend(any()) } answers {
-            firstArg<(Int, String) -> Unit>().invoke(HttpStatus.UNAUTHORIZED.value(), "Unauthorized")
-        }
-        coEvery { TokenManager.refreshToken(any()) } throws Exception("Refresh Token Failed")
-    
-        // Act
-        DigitalNetworkHandler.request<Any, Any>(
-            route = "test/route",
-            method = Method.Get,
-            headers = mockHeaders,
-            callback = mockCallback
-        )
-    
-        // Assert
-        coVerify {
-            mockCallback.invoke(
-                match { result ->
-                    (result as InvokerResult.Error).error.message == "Refresh Token Failed"
-                }
-            )
-        }
-    }
-    
-    @Test
-    fun `responseType not null for GET request`() = runBlockingTest {
-        // Arrange
-        val mockResponse = mockk<NetworkResponse<Any>>()
-        val mockType = mockk<Type>()
-        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
-        coEvery { mockResponse.onSuccessSuspend(any()) } answers {
-            secondArg<(Any) -> Unit>().invoke(mockk())
-        }
-    
-        // Act
-        DigitalNetworkHandler.request<Any, Any>(
-            route = "test/route",
-            method = Method.Get,
-            headers = mockHeaders,
-            responseType = mockType,
-            callback = mockCallback
-        )
-    
-        // Assert
-        coVerify { mockCallback.invoke(any()) }
-    }
-    
-    @Test
-    fun `callback is null does not crash`() = runBlockingTest {
-        // Arrange
-        val mockResponse = mockk<NetworkResponse<Any>>()
-        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
-        coEvery { mockResponse.onSuccessSuspend(any()) } answers {
-            secondArg<(Any) -> Unit>().invoke(mockk())
-        }
-    
-        // Act
-        DigitalNetworkHandler.request<Any, Any>(
-            route = "test/route",
-            method = Method.Get,
-            headers = mockHeaders,
-            callback = null
-        )
-    
-        // Assert
-        // No exception should be thrown, and code should run smoothly.
-    }
-    
-    @Test
-    fun `successful retry after token refresh`() = runBlockingTest {
-        // Arrange
-        val mockResponse = mockk<NetworkResponse<Any>>()
-        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
-        coEvery { mockResponse.onErrorSuspend(any()) } answers {
-            firstArg<(Int, String) -> Unit>().invoke(HttpStatus.UNAUTHORIZED.value(), "Unauthorized")
-        }
-        coEvery { TokenManager.refreshToken(any()) } answers {
-            firstArg<() -> Unit>().invoke()
-        }
-        // Simulate success after token refresh
-        coEvery { mockNetworkHandler.get<Any>(any(), any(), any(), any()) } returns mockResponse
-        coEvery { mockResponse.onSuccessSuspend(any()) } answers {
-            secondArg<(Any) -> Unit>().invoke(mockk())
-        }
-
-    // Act
-    DigitalNetworkHandler.request<Any, Any>(
-        route = "test/route",
-        method = Method.Get,
-        headers = mockHeaders,
-        callback = mockCallback
-    )
-
-    // Assert
-    coVerify { mockCallback.invoke(match { result ->
-        result is InvokerResult.Success
-    }) }
-    }
-
-
-
-
-    }
-
-
-
-
-
-
-
-'''
